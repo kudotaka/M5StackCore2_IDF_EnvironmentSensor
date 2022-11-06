@@ -1,0 +1,75 @@
+menu "My Original (M5Core2)"
+    config WIFI_SSID
+        string "WiFi SSID"
+        default "AWSWorkshop"
+        help
+            SSID (network name) for the example to connect to.
+
+    config WIFI_PASSWORD
+        string "WiFi Password"
+        default "IoTP$AK1t"
+        help
+            WiFi password (WPA or WPA2) for the example to use.
+
+            Can be left blank if the network has no security set.
+
+    config BROKER_URL
+        string "Broker URL"
+        default "mqtt://XXX.XXX.XXX.XXX"
+        help
+            URL of the broker to connect to
+    config BROKER_PORT
+        int "Broker PORT"
+        default 1883
+        help
+            PORT of the broker to connect to
+    config BROKER_MY_DEVICE_ID
+        string "Device ID"
+        default "M5StackCore2"
+    config BROKER_MY_PUB_TOPIC
+        string "Pub Topic"
+        default "pub/v1/M5StackCore2"
+
+endmenu
+
+menu "M5Core2 hardware enable"
+    choice
+        prompt "Set Model"
+        default SOFTWARE_MODEL_M5CORE2FORAWS
+        config SOFTWARE_MODEL_M5CORE2FORAWS
+            bool "MODEL-CORE2 FOR AWS"
+        config SOFTWARE_MODEL_M5CORE2
+            bool "MODEL-CORE2"
+    endchoice
+    config SOFTWARE_WIFI_SUPPORT
+        bool "WIFI-Hardware"
+        default y
+    config SOFTWARE_UI_SUPPORT
+        bool "DISPLAY-Hardware"
+        default y
+    config SOFTWARE_SCREEN_DEMO_SUPPORT
+        bool "SCREEN-DEMO"
+        depends on SOFTWARE_UI_SUPPORT
+        default n
+    config SOFTWARE_FT6336U_SUPPORT
+        bool "Screen touch-FT6336U"
+        default y
+    config SOFTWARE_SK6812_SUPPORT
+        bool "RGB-SK6812"
+        default n
+    config SOFTWARE_RTC_SUPPORT
+        bool "RTC-PCF8563"
+        default y
+    config SOFTWARE_BUTTON_SUPPORT
+        bool "BUTTON-Touch-Software"
+        default y
+    config SOFTWARE_MPU6886_SUPPORT
+        bool "IMU-MPU6886"
+        default n
+    config SOFTWARE_BUZZER_SUPPORT
+        bool "BUZZER-Hardware"
+        default n
+    config SOFTWARE_LED_SUPPORT
+        bool "LED-Hardware"
+        default n
+endmenu
