@@ -12,7 +12,7 @@
 #include "m5core2.h"
 
 
-//#define EX_ESP_MQTT_SUPPORT 1
+#define EX_ESP_MQTT_SUPPORT 1
 
 #if CONFIG_SOFTWARE_WIFI_SUPPORT
 #include "wifi.h"
@@ -45,6 +45,11 @@
 
 static const char *TAG = "MY-MAIN";
 
+#if EX_ESP_MQTT_SUPPORT
+float g_temperature = 0.0;
+float g_humidity = 0.0;
+int g_co2 = 0;
+#endif
 
 #if CONFIG_SOFTWARE_RTC_SUPPORT
 static char g_lastSyncDatetime[72] = {0};
@@ -279,14 +284,17 @@ void vLoopUnitEnvScd30Task(void *pvParametes)
                 //scd30_tmp[0]; //scd30_co2Concentration
                 //scd30_tmp[1]; //scd30_temperature
                 //scd30_tmp[2]; //scd30_humidity
-                ESP_LOGI(TAG, "temperature:%f, humidity:%f", scd30_tmp[1], scd30_tmp[2]);
+                g_co2 = scd30_tmp[0];
+                g_temperature = scd30_tmp[1];
+                g_humidity = scd30_tmp[2];
+                ESP_LOGI(TAG, "temperature:%f, humidity:%f", g_temperature, g_humidity);
 #if CONFIG_SOFTWARE_UI_SUPPORT
                 char str1[25] = {0};
-                sprintf(str1, "CO2 : %04.2f ppm", scd30_tmp[0]);
+                sprintf(str1, "CO2 : %04d ppm", g_co2);
                 ui_status_set( str1 );
 
-                ui_temperature_update( (int)scd30_tmp[1] );
-                ui_humidity_update( (int)scd30_tmp[2] );
+                ui_temperature_update( (int)g_temperature );
+                ui_humidity_update( (int)g_humidity );
 #endif
             } else {
                 ESP_LOGE(TAG, "Scd30_GetCarbonDioxideConcentration is error code:%d", ret);
@@ -564,6 +572,7 @@ void vLoopUnitDigitDisplayTask(void *pvParametes)
 
 #if EX_ESP_MQTT_SUPPORT
 TaskHandle_t xEspMqttClient;
+esp_mqtt_client_handle_t mqttClient;
 static void log_error_if_nonzero(const char *message, int error_code)
 {
     if (error_code != 0) {
@@ -575,11 +584,12 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
     esp_mqtt_event_handle_t event = event_data;
-    esp_mqtt_client_handle_t client = event->client;
-    int msg_id;
+//    esp_mqtt_client_handle_t client = event->client;
+//    int msg_id;
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
+/*
         msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "data_3", 0, 1, 0);
         ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
 
@@ -591,6 +601,7 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
         msg_id = esp_mqtt_client_unsubscribe(client, "/topic/qos1");
         ESP_LOGI(TAG, "sent unsubscribe successful, msg_id=%d", msg_id);
+*/
         break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
@@ -598,8 +609,10 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
     case MQTT_EVENT_SUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
+/*
         msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0, 0);
         ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
+*/
         break;
     case MQTT_EVENT_UNSUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
@@ -619,7 +632,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
             log_error_if_nonzero("reported from tls stack", event->error_handle->esp_tls_stack_err);
             log_error_if_nonzero("captured as transport's socket errno",  event->error_handle->esp_transport_sock_errno);
             ESP_LOGI(TAG, "Last errno string (%s)", strerror(event->error_handle->esp_transport_sock_errno));
-
         }
         break;
     default:
@@ -627,56 +639,65 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         break;
     }
 }
-/*
+
 static void mqtt_app_start(void)
 {
     esp_mqtt_client_config_t mqtt_cfg = {
-        .broker.address.uri = CONFIG_BROKER_URL,
+        .uri = CONFIG_BROKER_URL,
+        .buffer_size = CONFIG_BROKER_BUFFER_SIZE,
+        .client_id = CONFIG_BROKER_MY_DEVICE_ID,
+        .lwt_qos = CONFIG_BROKER_LWT_QOS,
+        .protocol_ver = CONFIG_MQTT_PROTOCOL_311,
     };
-#if CONFIG_BROKER_URL_FROM_STDIN
-    char line[128];
 
-    if (strcmp(mqtt_cfg.broker.address.uri, "FROM_STDIN") == 0) {
-        int count = 0;
-        printf("Please enter url of mqtt broker\n");
-        while (count < 128) {
-            int c = fgetc(stdin);
-            if (c == '\n') {
-                line[count] = '\0';
-                break;
-            } else if (c > 0 && c < 127) {
-                line[count] = c;
-                ++count;
-            }
-            vTaskDelay(10 / portTICK_PERIOD_MS);
-        }
-        mqtt_cfg.broker.address.uri = line;
-        printf("Broker url: %s\n", line);
-    } else {
-        ESP_LOGE(TAG, "Configuration mismatch: wrong broker url");
-        abort();
+    mqttClient = esp_mqtt_client_init(&mqtt_cfg);
+    if (mqttClient == NULL) {
+        ESP_LOGE(TAG, "esp_mqtt_client_init() is error.");
+        return;
     }
-#endif // CONFIG_BROKER_URL_FROM_STDIN //
-
-    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
-    // The last argument may be used to pass data to the event handler, in this example mqtt_event_handler //
-    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-    esp_mqtt_client_start(client);
+    ESP_ERROR_CHECK(esp_mqtt_client_register_event(mqttClient, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_mqtt_client_start(mqttClient));
 }
-*/
 
 static void vLoopEspMqttClient_task(void* pvParameters) {
-    ESP_LOGI(TAG, "start LoopEspMqttClient_task");
+    ESP_LOGI(TAG, "start EspMqttClient_task");
 
-    esp_mqtt_client_config_t mqtt_cfg = {
-        .broker.address.uri = CONFIG_BROKER_URL,
-    };
+    // connected wifi
+    while (1) {
+        if (wifi_isConnected() == ESP_OK) {
+            mqtt_app_start();
+            break;
+        }
+        vTaskDelay( pdMS_TO_TICKS(30000) );
+    }
+
+    int msg_id;
+    char pubMessage[128];
+/*
+//    g_temperature = 20.0;
+//    g_humidity = 50.0;
+//    g_co2 = 1000;
+    esp_mqtt_client_config_t mqtt_cfg;
+    mqtt_cfg.uri = CONFIG_BROKER_URL;
+    mqtt_cfg.buffer_size = CONFIG_BROKER_BUFFER_SIZE;
+    mqtt_cfg.client_id = CONFIG_BROKER_MY_DEVICE_ID;
+    mqtt_cfg.lwt_qos = CONFIG_BROKER_LWT_QOS;
+    mqtt_cfg.protocol_ver = CONFIG_MQTT_PROTOCOL_311;
     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
-    // The last argument may be used to pass data to the event handler, in this example mqtt_event_handler //
-    esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-    esp_mqtt_client_start(client);
+    ESP_ERROR_CHECK(esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_mqtt_client_start(client));
+*/
+    vTaskDelay( pdMS_TO_TICKS(10000) );
 
     while (1) {
+    // connected wifi
+    if (wifi_isConnected() == ESP_OK) {
+        sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"co2\":%4d}", g_temperature, g_humidity, g_co2);
+        msg_id = esp_mqtt_client_publish(mqttClient, CONFIG_BROKER_MY_PUB_TOPIC, pubMessage, 0, 0, 0);
+        ESP_LOGI(TAG, "sent publish successful, msg_id=%d pubMessage=%s", msg_id, pubMessage);
+    } else {
+        ESP_LOGI(TAG, "wifi not Connect. wait for ...");
+    }
 
         vTaskDelay(pdMS_TO_TICKS(60000));
     }
@@ -772,7 +793,6 @@ void app_main(void)
 
 
 #if EX_ESP_MQTT_SUPPORT
-//    mqtt_app_start();
     // ESP_MQTT
     xTaskCreatePinnedToCore(&vLoopEspMqttClient_task, "vLoopEspMqttClient_task", 4096 * 1, NULL, 2, &xEspMqttClient, 1);
 #endif
