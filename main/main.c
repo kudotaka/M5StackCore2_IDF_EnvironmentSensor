@@ -35,6 +35,7 @@
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_SK6812_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_4DIGIT_DISPLAY_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_6DIGIT_DISPLAY_SUPPORT )
@@ -54,11 +55,11 @@ float g_temperature = 0.0;
 float g_humidity = 0.0;
 float g_pressure = 0.0;
 #endif //CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
-#if CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT
+#if ( CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
 float g_temperature = 0.0;
 float g_humidity = 0.0;
 int g_co2 = 0;
-#endif //CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT
+#endif //( CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
 
 #if CONFIG_SOFTWARE_RTC_SUPPORT
 static char g_lastSyncDatetime[72] = {0};
@@ -336,6 +337,57 @@ void vLoopUnitEnvScd30Task(void *pvParametes)
 #endif
             } else {
                 ESP_LOGE(TAG, "Scd30_GetCarbonDioxideConcentration is error code:%d", ret);
+                vTaskDelay( pdMS_TO_TICKS(10000) );
+            }
+        }
+
+        vTaskDelay( pdMS_TO_TICKS(10000) );
+    }
+}
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT
+TaskHandle_t xUnitEnvScd40;
+void vLoopUnitEnvScd40Task(void *pvParametes)
+{
+    ESP_LOGI(TAG, "start I2C Scd40");
+    esp_err_t ret = ESP_OK;
+    ret = Scd40_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Scd40_I2CInit Error");
+        return;
+    }
+    ret = Scd40_SetAutoSelfCalibration(false);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Scd40_SetAutoSelfCalibration() is Error");
+    }
+    ret = Scd40_SetTemperatureOffset(0); // 0*100
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Scd40_SetTemperatureOffset() is Error");
+    }
+    vTaskDelay( pdMS_TO_TICKS(200) );
+    while (1) {
+        float scd40_tmp[3] = { 0.0 };
+        if (Scd40_IsAvailable() != false) {
+            ret = Scd40_GetCarbonDioxideConcentration(scd40_tmp);
+            if (ret == ESP_OK) {
+                //scd40_tmp[0]; //scd40_co2Concentration
+                //scd40_tmp[1]; //scd40_temperature
+                //scd40_tmp[2]; //scd40_humidity
+                g_co2 = scd40_tmp[0];
+                g_temperature = scd40_tmp[1];
+                g_humidity = scd40_tmp[2];
+                ESP_LOGI(TAG, "temperature:%f, humidity:%f, CO2:%04d", g_temperature, g_humidity, g_co2);
+#if CONFIG_SOFTWARE_UI_SUPPORT
+                char str1[25] = {0};
+                sprintf(str1, "CO2 : %04d ppm", g_co2);
+                ui_status_set( str1 );
+
+                ui_temperature_update( (int)g_temperature );
+                ui_humidity_update( (int)g_humidity );
+#endif
+            } else {
+                ESP_LOGE(TAG, "Scd40_GetCarbonDioxideConcentration is error code:%d", ret);
                 vTaskDelay( pdMS_TO_TICKS(10000) );
             }
         }
@@ -703,9 +755,9 @@ static void vLoopEspMqttClient_task(void* pvParameters) {
 #if CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
         sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"pressure\":%4.1f}", g_temperature, g_humidity, g_pressure);
 #endif //CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
-#if CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT
+#if ( CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
         sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"co2\":%4d}", g_temperature, g_humidity, g_co2);
-#endif //CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT
+#endif //( CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
         msg_id = esp_mqtt_client_publish(mqttClient, CONFIG_BROKER_MY_PUB_TOPIC, pubMessage, 0, 0, 0);
         ESP_LOGI(TAG, "sent publish successful, msg_id=%d pubMessage=%s", msg_id, pubMessage);
     } else {
@@ -763,6 +815,11 @@ void app_main(void)
 #if CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT
     // UNIT ENV SCD30
     xTaskCreatePinnedToCore(&vLoopUnitEnvScd30Task, "unit_env_scd30_task", 4096 * 1, NULL, 2, &xUnitEnvScd30, 1);
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT
+    // UNIT ENV SCD40
+    xTaskCreatePinnedToCore(&vLoopUnitEnvScd40Task, "unit_env_scd40_task", 4096 * 1, NULL, 2, &xUnitEnvScd40, 1);
 #endif
 
 #if CONFIG_SOFTWARE_MPU6886_SUPPORT

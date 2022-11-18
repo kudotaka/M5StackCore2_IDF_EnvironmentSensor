@@ -14,6 +14,10 @@
 #include "scd30.h"
 #endif
 
+#if CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT
+#include "scd40.h"
+#endif
+
 #if CONFIG_SOFTWARE_UNIT_SK6812_SUPPORT
 #include "sk6812.h"
 #endif

@@ -8,6 +8,9 @@ menu "M5Unit enable"
     config SOFTWARE_UNIT_ENV_SCD30_SUPPORT
         bool "UNIT-ENV-SCD30-Hardware"
         default n
+    config SOFTWARE_UNIT_ENV_SCD40_SUPPORT
+        bool "UNIT-ENV-SCD40-Hardware"
+        default n
     config SOFTWARE_UNIT_SK6812_SUPPORT
         bool "UNIT-SK6812-Hardware"
         default n

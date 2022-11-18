@@ -40,6 +40,7 @@
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_SK6812_SUPPORT )
 #include "m5unit.h"
 #endif
@@ -54,7 +55,8 @@ static lv_obj_t *wifi_label;
 
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT )
+    || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
 #define MOJI_DEGREESIGN  "°C"
 static lv_obj_t *humidity_current;
 static lv_obj_t *humidity_label;
@@ -145,7 +147,8 @@ void ui_datetime_set(char *dateTxt) {
 
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT )
+    || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
 void ui_humidity_update(int32_t value){
     xSemaphoreTake(xGuiSemaphore, portMAX_DELAY);
 
@@ -226,7 +229,8 @@ void ui_init() {
 
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT )
+    || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
     // label_style
     lv_style_init(&label_big_style);
     lv_style_set_text_font(&label_big_style, LV_STATE_DEFAULT, &lv_font_montserrat_32);
