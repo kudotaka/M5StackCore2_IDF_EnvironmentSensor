@@ -20,8 +20,6 @@
 
 #define SCD30_POLYNOMIAL                        (0x31)
 
-//static const char *TAG = "SCD30";
-
 static I2CDevice_t scd30_device = NULL;
 
 uint8_t Scd30_CalculateCrc(uint8_t data[], uint8_t len) {

@@ -73,4 +73,8 @@ menu "M5Core2 hardware enable"
     config SOFTWARE_LED_SUPPORT
         bool "LED-Hardware"
         default n
+    config SOFTWARE_ESP_MQTT_SUPPORT
+        bool "ESP-MQTT"
+        depends on SOFTWARE_WIFI_SUPPORT
+        default n
 endmenu

@@ -10,7 +10,6 @@ extern "C" {
 #include "driver/gpio.h"
 #include "i2c_device.h"
 
-//esp_err_t SCD30_initialize(void);
 esp_err_t Scd30_Init(i2c_port_t i2c_num, gpio_num_t sda, gpio_num_t scl, uint32_t baud);
 
 bool Scd30_IsAvailable(void);

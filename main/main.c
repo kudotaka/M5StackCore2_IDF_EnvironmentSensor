@@ -12,12 +12,10 @@
 #include "m5core2.h"
 
 
-#define EX_ESP_MQTT_SUPPORT 1
-
 #if CONFIG_SOFTWARE_WIFI_SUPPORT
 #include "wifi.h"
 
-#if EX_ESP_MQTT_SUPPORT
+#if CONFIG_SOFTWARE_ESP_MQTT_SUPPORT
 #include "mqtt_client.h"
 #include "lwip/sockets.h"
 #include "lwip/dns.h"
@@ -35,6 +33,7 @@
 #endif
 
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_SK6812_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_4DIGIT_DISPLAY_SUPPORT \
@@ -45,11 +44,21 @@
 
 static const char *TAG = "MY-MAIN";
 
-#if EX_ESP_MQTT_SUPPORT
+#if CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
+float g_temperature = 0.0;
+float g_humidity = 0.0;
+uint32_t g_pressure = 0.0;
+#endif //CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
+#if CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
+float g_temperature = 0.0;
+float g_humidity = 0.0;
+float g_pressure = 0.0;
+#endif //CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
+#if CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT
 float g_temperature = 0.0;
 float g_humidity = 0.0;
 int g_co2 = 0;
-#endif
+#endif //CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT
 
 #if CONFIG_SOFTWARE_RTC_SUPPORT
 static char g_lastSyncDatetime[72] = {0};
@@ -225,23 +234,52 @@ void vLoopClockTask(void *pvParametes)
 }
 #endif
 
-#if CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
+#if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT )
 TaskHandle_t xUnitEnv2;
 void vLoopUnitEnv2Task(void *pvParametes)
 {
     ESP_LOGI(TAG, "start I2C Sht3x");
     esp_err_t ret = ESP_OK;
+#if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT )
     ret = Sht3x_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Sht3x_I2CInit Error");
+        ESP_LOGE(TAG, "Sht3x_Init Error");
         return;
     }
     ESP_LOGI(TAG, "Sht3x_Init() is OK!");
+#endif
+#if CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
+    ret = Bmp280_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Bmp280_Init Error");
+        return;
+    }
+    ESP_LOGI(TAG, "Bmp280_Init() is OK!");
+#endif
+#if CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
+    ret = Qmp6988_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Qmp6988_Init Error");
+        return;
+    }
+    ESP_LOGI(TAG, "Qmp6988_Init() is OK!");
+#endif
     while (1) {
         ret = Sht3x_Read();
         if (ret == ESP_OK) {
             vTaskDelay( pdMS_TO_TICKS(100) );
-            ESP_LOGI(TAG, "temperature:%f, humidity:%f", Sht3x_GetTemperature(), Sht3x_GetHumidity());
+#if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT )
+            g_temperature = Sht3x_GetTemperature();
+            g_humidity = Sht3x_GetHumidity();
+#endif
+#if CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
+            g_pressure = Bmp280_getPressure() / 100;
+            ESP_LOGI(TAG, "temperature:%f, humidity:%f, pressure:%d", g_temperature, g_humidity, g_pressure);
+#endif
+#if CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
+            g_pressure = Qmp6988_CalcPressure();
+            ESP_LOGI(TAG, "temperature:%f, humidity:%f, pressure:%f", g_temperature, g_humidity, g_pressure);
+#endif
 #if CONFIG_SOFTWARE_UI_SUPPORT
             ui_temperature_update( Sht3x_GetIntTemperature() );
             ui_humidity_update( Sht3x_GetIntHumidity() );
@@ -570,7 +608,7 @@ void vLoopUnitDigitDisplayTask(void *pvParametes)
 }
 #endif
 
-#if EX_ESP_MQTT_SUPPORT
+#if CONFIG_SOFTWARE_ESP_MQTT_SUPPORT
 TaskHandle_t xEspMqttClient;
 esp_mqtt_client_handle_t mqttClient;
 static void log_error_if_nonzero(const char *message, int error_code)
@@ -584,24 +622,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 {
     ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
     esp_mqtt_event_handle_t event = event_data;
-//    esp_mqtt_client_handle_t client = event->client;
-//    int msg_id;
     switch ((esp_mqtt_event_id_t)event_id) {
     case MQTT_EVENT_CONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-/*
-        msg_id = esp_mqtt_client_publish(client, "/topic/qos1", "data_3", 0, 1, 0);
-        ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
-
-        msg_id = esp_mqtt_client_subscribe(client, "/topic/qos0", 0);
-        ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
-
-        msg_id = esp_mqtt_client_subscribe(client, "/topic/qos1", 1);
-        ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
-
-        msg_id = esp_mqtt_client_unsubscribe(client, "/topic/qos1");
-        ESP_LOGI(TAG, "sent unsubscribe successful, msg_id=%d", msg_id);
-*/
         break;
     case MQTT_EVENT_DISCONNECTED:
         ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
@@ -609,10 +632,6 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 
     case MQTT_EVENT_SUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-/*
-        msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0, 0);
-        ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
-*/
         break;
     case MQTT_EVENT_UNSUBSCRIBED:
         ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
@@ -621,9 +640,9 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
         ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
         break;
     case MQTT_EVENT_DATA:
-        ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-        printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-        printf("DATA=%.*s\r\n", event->data_len, event->data);
+        ESP_LOGI(TAG, "MQTT_EVENT_DATA, TOPIC=%s, DATA=%s", event->topic , event->data);
+//        printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+//        printf("DATA=%.*s\r\n", event->data_len, event->data);
         break;
     case MQTT_EVENT_ERROR:
         ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
@@ -672,27 +691,21 @@ static void vLoopEspMqttClient_task(void* pvParameters) {
     }
 
     int msg_id;
-    char pubMessage[128];
-/*
-//    g_temperature = 20.0;
-//    g_humidity = 50.0;
-//    g_co2 = 1000;
-    esp_mqtt_client_config_t mqtt_cfg;
-    mqtt_cfg.uri = CONFIG_BROKER_URL;
-    mqtt_cfg.buffer_size = CONFIG_BROKER_BUFFER_SIZE;
-    mqtt_cfg.client_id = CONFIG_BROKER_MY_DEVICE_ID;
-    mqtt_cfg.lwt_qos = CONFIG_BROKER_LWT_QOS;
-    mqtt_cfg.protocol_ver = CONFIG_MQTT_PROTOCOL_311;
-    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
-    ESP_ERROR_CHECK(esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL));
-    ESP_ERROR_CHECK(esp_mqtt_client_start(client));
-*/
+    char pubMessage[128] = {0};
     vTaskDelay( pdMS_TO_TICKS(10000) );
 
     while (1) {
     // connected wifi
     if (wifi_isConnected() == ESP_OK) {
+#if CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
+        sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"pressure\":%4d}", g_temperature, g_humidity, g_pressure);
+#endif //CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
+#if CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
+        sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"pressure\":%4.1f}", g_temperature, g_humidity, g_pressure);
+#endif //CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
+#if CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT
         sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"co2\":%4d}", g_temperature, g_humidity, g_co2);
+#endif //CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT
         msg_id = esp_mqtt_client_publish(mqttClient, CONFIG_BROKER_MY_PUB_TOPIC, pubMessage, 0, 0, 0);
         ESP_LOGI(TAG, "sent publish successful, msg_id=%d pubMessage=%s", msg_id, pubMessage);
     } else {
@@ -711,10 +724,11 @@ static void vLoopEspMqttClient_task(void* pvParameters) {
 void app_main(void)
 {
     ESP_LOGI(TAG, "app_main() start.");
-//    esp_log_level_set("*", ESP_LOG_ERROR);
+    esp_log_level_set("*", ESP_LOG_ERROR);
     esp_log_level_set("MY-MAIN", ESP_LOG_INFO);
     esp_log_level_set("MY-UI", ESP_LOG_INFO);
     esp_log_level_set("MY-WIFI", ESP_LOG_INFO);
+    esp_log_level_set("MY-QMP6988", ESP_LOG_INFO);
 //    esp_log_level_set("wifi", ESP_LOG_INFO);
 //    esp_log_level_set("gpio", ESP_LOG_INFO);
 
@@ -741,7 +755,7 @@ void app_main(void)
     xTaskCreatePinnedToCore(&vLoopClockTask, "clock_task", 4096 * 1, NULL, 2, &xClock, 1);
 #endif
 
-#if CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
+#if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT )
     // UNIT ENV2
     xTaskCreatePinnedToCore(&vLoopUnitEnv2Task, "unit_env2_task", 4096 * 1, NULL, 2, &xUnitEnv2, 1);
 #endif
@@ -792,7 +806,7 @@ void app_main(void)
 #endif
 
 
-#if EX_ESP_MQTT_SUPPORT
+#if CONFIG_SOFTWARE_ESP_MQTT_SUPPORT
     // ESP_MQTT
     xTaskCreatePinnedToCore(&vLoopEspMqttClient_task, "vLoopEspMqttClient_task", 4096 * 1, NULL, 2, &xEspMqttClient, 1);
 #endif

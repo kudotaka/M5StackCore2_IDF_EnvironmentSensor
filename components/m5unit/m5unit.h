@@ -2,6 +2,12 @@
 
 #if CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
 #include "sht3x.h"
+#include "bmp280.h"
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
+#include "sht3x.h"
+#include "qmp6988.h"
 #endif
 
 #if CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT

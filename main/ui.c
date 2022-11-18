@@ -38,6 +38,7 @@
 #define MAX_TEXTAREA_LENGTH 128
 
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_SK6812_SUPPORT )
 #include "m5unit.h"
@@ -52,6 +53,7 @@ static lv_obj_t *wifi_label;
 #endif
 
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT )
 #define MOJI_DEGREESIGN  "°C"
 static lv_obj_t *humidity_current;
@@ -142,6 +144,7 @@ void ui_datetime_set(char *dateTxt) {
 #endif
 
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT )
 void ui_humidity_update(int32_t value){
     xSemaphoreTake(xGuiSemaphore, portMAX_DELAY);
@@ -222,6 +225,7 @@ void ui_init() {
 
 
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT )
     // label_style
     lv_style_init(&label_big_style);
