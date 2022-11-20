@@ -15,6 +15,11 @@
 #include "mpu6886.h"
 #endif
 
+#if CONFIG_SOFTWARE_SPEAKER_SUPPORT
+#include "driver/i2s.h"
+#include "speaker.h"
+#endif
+
 #include "driver/gpio.h"
 #include "i2c_device.h"
 
@@ -86,6 +91,8 @@ void M5Core2_Display_SetBrightness(uint8_t brightness);
 void M5Core2_PMU_Init(uint16_t ldo2_volt, uint16_t ldo3_volt, uint16_t dc2_volt, uint16_t dc3_volt);
 float M5Core2_PMU_GetBatVolt(void);
 float M5Core2_PMU_GetBatCurrent(void);
+void M5Core2_Motor_SetStrength(uint8_t strength);
+void M5Core2_Speaker_Enable(uint8_t state);
 
 #if CONFIG_SOFTWARE_BUTTON_SUPPORT
 extern Button_t* button_left;

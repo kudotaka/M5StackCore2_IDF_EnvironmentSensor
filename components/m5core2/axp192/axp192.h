@@ -557,3 +557,5 @@ void Axp192_SetGPIO1Mode(uint8_t mode);
 /* @[declare_axp192_setgpio1level] */
 void Axp192_SetGPIO1Level(uint8_t level);
 /* @[declare_axp192_setgpio1level] */
+
+void Axp192_SetSpeakerEnable(uint8_t level);

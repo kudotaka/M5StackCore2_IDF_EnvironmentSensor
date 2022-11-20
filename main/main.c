@@ -42,6 +42,9 @@
 #include "m5unit.h"
 #endif
 
+#if CONFIG_SOFTWARE_SPEAKER_SUPPORT
+#include "wav2_20.h"
+#endif
 
 static const char *TAG = "MY-MAIN";
 
@@ -65,6 +68,16 @@ int g_co2 = 0;
 static char g_lastSyncDatetime[72] = {0};
 #endif
 
+#if CONFIG_SOFTWARE_CLOCK_SOUND_SUPPORT
+uint8_t g_clockCount = 0;
+uint8_t g_clockCurrent = 0;
+#endif
+
+#if CONFIG_SOFTWARE_SPEAKER_SUPPORT
+size_t i2s_bytes_write = 0;
+TaskHandle_t xSpeaker;
+#endif
+
 #if CONFIG_SOFTWARE_BUTTON_SUPPORT
 TaskHandle_t xButton;
 static void button_task(void* pvParameters) {
@@ -76,13 +89,15 @@ static void button_task(void* pvParameters) {
 #if CONFIG_SOFTWARE_UI_SUPPORT
             ui_button_label_update(true);
 #endif
+#if CONFIG_SOFTWARE_SPEAKER_SUPPORT
+            vTaskResume(xSpeaker);
+#endif
         }
         if (Button_WasReleased(button_left)) {
             ESP_LOGI(TAG, "BUTTON LEFT RELEASED!");
 #if CONFIG_SOFTWARE_UI_SUPPORT
             ui_button_label_update(false);
 #endif
-            M5Core2_LED_Enable(true);
         }
         if (Button_WasLongPress(button_left, pdMS_TO_TICKS(1000))) { // 1Sec
             ESP_LOGI(TAG, "BUTTON LEFT LONGPRESS!");
@@ -92,7 +107,6 @@ static void button_task(void* pvParameters) {
 #if CONFIG_SOFTWARE_BUZZER_SUPPORT
             vTaskResume(xBuzzer);
 #endif
-            M5Core2_LED_Enable(false);
         }
 
         if (Button_WasPressed(button_middle)) {
@@ -224,6 +238,19 @@ void vLoopClockTask(void *pvParametes)
     while (1) {
         rtc_date_t rtcdate;
         PCF8563_GetTime(&rtcdate);
+#if CONFIG_SOFTWARE_CLOCK_SOUND_SUPPORT
+        if (g_clockCurrent != rtcdate.hour) {
+            if (rtcdate.hour == 0) { // 0:00
+                g_clockCount = 12;
+            } else if (rtcdate.hour > 12) { // 13:00-23:00
+                g_clockCount = rtcdate.hour - 12;
+            } else { // 1:00-12:00
+                g_clockCount = rtcdate.hour;
+            }
+            g_clockCurrent = rtcdate.hour;
+            vTaskResume(xSpeaker);
+        }
+#endif
         char str1[30] = {0};
         sprintf(str1,"%04d/%02d/%02d %02d:%02d:%02d", rtcdate.year, rtcdate.month, rtcdate.day, rtcdate.hour, rtcdate.minute, rtcdate.second);
 #if CONFIG_SOFTWARE_UI_SUPPORT
@@ -768,7 +795,31 @@ static void vLoopEspMqttClient_task(void* pvParameters) {
     }
     vTaskDelete(NULL); // Should never get to here...
 }
+#endif
 
+#if CONFIG_SOFTWARE_SPEAKER_SUPPORT
+void vLoopSpeaker_task(void *pvParametes)
+{
+    ESP_LOGI(TAG, "start Speaker");
+    ESP_ERROR_CHECK(Speaker_Init());
+
+    while (1) {
+      vTaskSuspend(NULL);
+      M5Core2_Speaker_Enable(true);
+
+#if CONFIG_SOFTWARE_CLOCK_SOUND_SUPPORT
+    for (uint8_t count = 0; count < g_clockCount; count++) {
+        Speaker_WriteBuff((uint8_t *)wav2_20, sizeof(wav2_20), portMAX_DELAY);
+    }
+#endif
+
+      vTaskDelay(pdMS_TO_TICKS(100));
+      M5Core2_Speaker_Enable(false);
+      vTaskDelay( pdMS_TO_TICKS(100) );
+    }
+
+    vTaskDelete(NULL); // Should never get to here...
+}
 #endif
 
 ////////////////////////////////////////////////////////////////////
@@ -862,10 +913,14 @@ void app_main(void)
     xTaskCreatePinnedToCore(&vLoopUnitDigitDisplayTask, "vLoopUnitDigitDisplayTask", 4096 * 1, NULL, 2, &xDigitDisplay, 1);
 #endif
 
-
 #if CONFIG_SOFTWARE_ESP_MQTT_SUPPORT
     // ESP_MQTT
     xTaskCreatePinnedToCore(&vLoopEspMqttClient_task, "vLoopEspMqttClient_task", 4096 * 1, NULL, 2, &xEspMqttClient, 1);
+#endif
+
+#if CONFIG_SOFTWARE_SPEAKER_SUPPORT
+    // SPEAKER
+    xTaskCreatePinnedToCore(&vLoopSpeaker_task, "vLoopSpeaker_task", 4096 * 1, NULL, 2, &xSpeaker, 1);
 #endif
 
 }

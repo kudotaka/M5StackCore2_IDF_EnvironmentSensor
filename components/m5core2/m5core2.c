@@ -64,6 +64,7 @@ ESP_LOGI(TAG, "M5Core2_Init Init().");
     MPU6886_Init();
 #endif
 
+    M5Core2_LED_Enable(false);
 }
 
 /* ===================================================================================================*/
@@ -223,6 +224,25 @@ void M5Core2_PMU_Init(uint16_t ldo2_volt, uint16_t ldo3_volt, uint16_t dc2_volt,
     Axp192_SetAdc1Enable(0xfe);
     Axp192_SetGPIO1Mode(1);
     M5Core2_PMU_SetPowerIn(0);
+}
+
+void M5Core2_Motor_SetStrength(uint8_t strength) {
+    if (strength > 100) {
+        strength = 100;
+    }
+
+    if (strength > 0){
+        uint16_t volt = (uint32_t)strength * (AXP192_LDO_VOLT_MAX - AXP192_LDO_VOLT_MIN) / 100 + AXP192_LDO_VOLT_MIN;
+        Axp192_SetLDO3Volt(volt);
+        Axp192_EnableLDO3(1);
+    } else {
+        Axp192_EnableLDO3(0);
+    }
+}
+
+void M5Core2_Speaker_Enable(uint8_t state) {
+    uint8_t value = state ? 1 : 0;
+    Axp192_SetSpeakerEnable(value);
 }
 /* ----------------------------------------------- End -----------------------------------------------*/
 /* ===================================================================================================*/

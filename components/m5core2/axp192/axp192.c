@@ -249,3 +249,12 @@ void Axp192_SetGPIO4Level(uint8_t level) {
     uint8_t value = level ? 1 : 0;
     Axp192_WriteBits(AXP192_GPIO34_STATE_REG, value, 1, 1);
 }
+
+// set speaker state(GPIO high active,set 1 to enable amplifier)
+void Axp192_SetSpeakerEnable(uint8_t level) {
+    uint8_t gpio_bit = 0x04;
+    uint8_t data = 0x00;
+    data = Axp192_Read8Bit(AXP192_GPIO012_STATE_REG);
+    data |= gpio_bit;
+    Axp192_Write8Bit(AXP192_GPIO012_STATE_REG, data);
+}

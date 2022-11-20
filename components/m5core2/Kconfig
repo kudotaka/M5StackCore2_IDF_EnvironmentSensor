@@ -67,6 +67,14 @@ menu "M5Core2 hardware enable"
     config SOFTWARE_MPU6886_SUPPORT
         bool "IMU-MPU6886"
         default n
+    config SOFTWARE_SPEAKER_SUPPORT
+        bool "Speaker-NS4168"
+        default n
+    config SOFTWARE_CLOCK_SOUND_SUPPORT
+        bool "CLOCK-SOUND"
+        depends on SOFTWARE_RTC_SUPPORT
+        depends on SOFTWARE_SPEAKER_SUPPORT
+        default n
     config SOFTWARE_BUZZER_SUPPORT
         bool "BUZZER-Hardware"
         default n
