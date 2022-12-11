@@ -71,6 +71,7 @@ static char g_lastSyncDatetime[72] = {0};
 #if CONFIG_SOFTWARE_CLOCK_SOUND_SUPPORT
 uint8_t g_clockCount = 0;
 uint8_t g_clockCurrent = 0;
+uint8_t g_clockSoundEnabled = 1;
 #endif
 
 #if CONFIG_SOFTWARE_SPEAKER_SUPPORT
@@ -90,6 +91,11 @@ static void button_task(void* pvParameters) {
             ui_button_label_update(true);
 #endif
 #if CONFIG_SOFTWARE_SPEAKER_SUPPORT
+            if (g_clockSoundEnabled) {
+                g_clockSoundEnabled = 0;
+            } else {
+                g_clockSoundEnabled = 1;
+            }
             vTaskResume(xSpeaker);
 #endif
         }
@@ -384,19 +390,30 @@ void vLoopUnitEnvScd40Task(void *pvParametes)
         ESP_LOGE(TAG, "Scd40_I2CInit Error");
         return;
     }
+    ret = Scd40_StopPeriodicMeasurement();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Scd40_StopPeriodicMeasurement() is Error code:%X", ret);
+    }
+/*
+    ret = Scd40_SetTemperatureOffset(0.0);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Scd40_SetTemperatureOffset() is Error code:%X", ret);
+    }
+*/
     ret = Scd40_SetAutoSelfCalibration(false);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Scd40_SetAutoSelfCalibration() is Error");
+        ESP_LOGE(TAG, "Scd40_SetAutoSelfCalibration() is Error code:%X", ret);
     }
-    ret = Scd40_SetTemperatureOffset(0); // 0*100
+    ret = Scd40_StartPeriodicMeasurement();
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Scd40_SetTemperatureOffset() is Error");
+        ESP_LOGE(TAG, "Scd40_StartPeriodicMeasurement() is Error code:%X", ret);
     }
-    vTaskDelay( pdMS_TO_TICKS(200) );
+    vTaskDelay( pdMS_TO_TICKS(5000) );
     while (1) {
         float scd40_tmp[3] = { 0.0 };
         if (Scd40_IsAvailable() != false) {
-            ret = Scd40_GetCarbonDioxideConcentration(scd40_tmp);
+//            ret = Scd40_GetCarbonDioxideConcentration(scd40_tmp);
+            ret = Scd40_ReadMeasurement(scd40_tmp);
             if (ret == ESP_OK) {
                 //scd40_tmp[0]; //scd40_co2Concentration
                 //scd40_tmp[1]; //scd40_temperature
@@ -414,7 +431,7 @@ void vLoopUnitEnvScd40Task(void *pvParametes)
                 ui_humidity_update( (int)g_humidity );
 #endif
             } else {
-                ESP_LOGE(TAG, "Scd40_GetCarbonDioxideConcentration is error code:%d", ret);
+                ESP_LOGE(TAG, "Scd40_GetCarbonDioxideConcentration is error code:%X", ret);
                 vTaskDelay( pdMS_TO_TICKS(10000) );
             }
         }
@@ -808,8 +825,11 @@ void vLoopSpeaker_task(void *pvParametes)
       M5Core2_Speaker_Enable(true);
 
 #if CONFIG_SOFTWARE_CLOCK_SOUND_SUPPORT
-    for (uint8_t count = 0; count < g_clockCount; count++) {
-        Speaker_WriteBuff((uint8_t *)wav2_20, sizeof(wav2_20), portMAX_DELAY);
+    if (g_clockSoundEnabled)
+    {
+        for (uint8_t count = 0; count < g_clockCount; count++) {
+            Speaker_WriteBuff((uint8_t *)wav2_20, sizeof(wav2_20), portMAX_DELAY);
+        }
     }
 #endif
 
@@ -829,9 +849,9 @@ void app_main(void)
     ESP_LOGI(TAG, "app_main() start.");
     esp_log_level_set("*", ESP_LOG_ERROR);
     esp_log_level_set("MY-MAIN", ESP_LOG_INFO);
-    esp_log_level_set("MY-UI", ESP_LOG_INFO);
-    esp_log_level_set("MY-WIFI", ESP_LOG_INFO);
-    esp_log_level_set("MY-QMP6988", ESP_LOG_INFO);
+//    esp_log_level_set("MY-UI", ESP_LOG_INFO);
+//    esp_log_level_set("MY-WIFI", ESP_LOG_INFO);
+//    esp_log_level_set("MY-QMP6988", ESP_LOG_INFO);
 //    esp_log_level_set("wifi", ESP_LOG_INFO);
 //    esp_log_level_set("gpio", ESP_LOG_INFO);
 

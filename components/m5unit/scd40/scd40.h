@@ -16,13 +16,13 @@ esp_err_t Scd40_Init(i2c_port_t i2c_num, gpio_num_t sda, gpio_num_t scl, uint32_
 bool Scd40_IsAvailable(void);
 
 esp_err_t Scd40_SetAutoSelfCalibration(bool enable);
-//esp_err_t Scd40_SetMeasurementInterval(uint16_t interval);
 
 esp_err_t Scd40_StartPeriodicMeasurement(void);
-esp_err_t Scd40_StopMeasurement(void);
-esp_err_t Scd40_SetTemperatureOffset(uint16_t offset);
+esp_err_t Scd40_StopPeriodicMeasurement(void);
+esp_err_t Scd40_SetTemperatureOffset(float offset);
 
-esp_err_t Scd40_GetCarbonDioxideConcentration(float* result);
+//esp_err_t Scd40_GetCarbonDioxideConcentration(float* result);
+esp_err_t Scd40_ReadMeasurement(float* result);
 
 #ifdef __cplusplus
 }

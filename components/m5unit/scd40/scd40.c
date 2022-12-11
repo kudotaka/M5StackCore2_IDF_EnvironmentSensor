@@ -65,41 +65,41 @@ uint8_t Scd40_CalculateCrc(uint8_t data[], uint8_t len) {
 esp_err_t Scd40_ReadBuffer(uint8_t* data, uint8_t len) {
     esp_err_t ret = ESP_OK;
     ret = i2c_read_bytes(scd40_device, (uint32_t)I2C_NO_REG, data, (uint16_t)len);
-    vTaskDelay(10);
+    vTaskDelay( pdMS_TO_TICKS(200) );
     return ret;
 }
 
 esp_err_t Scd40_WriteBuffer(uint8_t* data, uint8_t len) {
     esp_err_t ret = ESP_OK;
     ret = i2c_write_bytes(scd40_device, (uint32_t)I2C_NO_REG, data, (uint16_t)len);
-    vTaskDelay( pdMS_TO_TICKS(100) );
+    vTaskDelay( pdMS_TO_TICKS(200) );
     return ret;
 }
 
 esp_err_t Scd40_WriteCommand(uint16_t command) {
-    esp_err_t ret = ESP_OK;
     if (scd40_device == NULL) {
         return ESP_ERR_NOT_FOUND;
     }
-    uint8_t data[2] = { 0 };
-    data[0] = command >> 8;
-    data[1] = command & 0xff;
-    ret = i2c_write_bytes(scd40_device, (uint32_t)I2C_NO_REG, data, (uint16_t)2);
-    vTaskDelay( pdMS_TO_TICKS(100) );
-    return ret;
+    uint8_t buf[2] = { 0 };
+    buf[0] = command >> 8;
+    buf[1] = command & 0xff;
+    return Scd40_WriteBuffer(buf, (uint8_t)2);
 }
 
 esp_err_t Scd40_WriteCommandWithArguments(uint16_t command, uint16_t arguments) {
     uint8_t checkSum, buf[5] = { 0 };
+    uint8_t data[2] = { 0 };
+    data[0] = arguments >> 8;
+    data[1] = arguments & 0xff;
+    checkSum = Scd40_CalculateCrc(data, (uint8_t)2);
 
     buf[0] = command >> 8;
     buf[1] = command & 0xff;
     buf[2] = arguments >> 8;
     buf[3] = arguments & 0xff;
-    checkSum = Scd40_CalculateCrc(&buf[2], 2);
     buf[4] = checkSum;
 
-    return Scd40_WriteBuffer(buf, 5);
+    return Scd40_WriteBuffer(buf, (uint8_t)5);
 }
 
 uint16_t Scd40_ReadRegister(uint16_t address) {
@@ -112,12 +112,15 @@ uint16_t Scd40_ReadRegister(uint16_t address) {
         return false;
     }
 
-    return ((((uint16_t)buf[0]) << 8) | buf[1]);
+    return (uint16_t)((buf[0] << 8) | buf[1]);
 }
 
-
-esp_err_t Scd40_SetTemperatureOffset(uint16_t offset) {
-    return Scd40_WriteCommandWithArguments(SCD4x_COMMAND_SET_TEMPERATURE_OFFSET, offset);
+esp_err_t Scd40_SetTemperatureOffset(float offset) {
+    if (offset < 0.0 || offset >= 175.0) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    uint16_t offsetWord = (uint16_t)(offset * 65536.0 / 175.0 + 0.5f);
+    return Scd40_WriteCommandWithArguments(SCD4x_COMMAND_SET_TEMPERATURE_OFFSET, offsetWord);
 }
 
 bool Scd40_IsAvailable(void) {
@@ -126,25 +129,22 @@ bool Scd40_IsAvailable(void) {
 
 esp_err_t Scd40_SetAutoSelfCalibration(bool enable) {
     if (enable) {
-        return Scd40_WriteCommandWithArguments(SCD4x_COMMAND_SET_AUTOMATIC_SELF_CALIBRATION_ENABLED, 1);    //Activate continuous ASC
+        return Scd40_WriteCommandWithArguments(SCD4x_COMMAND_SET_AUTOMATIC_SELF_CALIBRATION_ENABLED, (uint16_t)0x0001);    //Activate continuous ASC
     } else {
-        return Scd40_WriteCommandWithArguments(SCD4x_COMMAND_SET_AUTOMATIC_SELF_CALIBRATION_ENABLED, 0);    //Deactivate continuous ASC
+        return Scd40_WriteCommandWithArguments(SCD4x_COMMAND_SET_AUTOMATIC_SELF_CALIBRATION_ENABLED, (uint16_t)0x0000);    //Deactivate continuous ASC
     }
 }
-/*
-esp_err_t Scd30_SetMeasurementInterval(uint16_t interval) {
-    return Scd30_WriteCommandWithArguments(SCD30_SET_MEASUREMENT_INTERVAL, interval);
-}
-*/
+
 esp_err_t Scd40_StartPeriodicMeasurement(void) {
-    return Scd40_WriteCommandWithArguments(SCD4x_COMMAND_START_PERIODIC_MEASUREMENT, 0x0000);
+    return Scd40_WriteCommandWithArguments(SCD4x_COMMAND_START_PERIODIC_MEASUREMENT, (uint16_t)0x0000);
 }
 
-esp_err_t Scd40_StopMeasurement(void) {
+esp_err_t Scd40_StopPeriodicMeasurement(void) {
     return Scd40_WriteCommand(SCD4x_COMMAND_STOP_PERIODIC_MEASUREMENT);
 }
 
-esp_err_t Scd40_GetCarbonDioxideConcentration(float* result) {
+//esp_err_t Scd40_GetCarbonDioxideConcentration(float* result) {
+esp_err_t Scd40_ReadMeasurement(float* result) {
     esp_err_t ret = ESP_OK;
     uint8_t buf[9] = { 0 };
     uint16_t co2U16 = 0;
@@ -167,8 +167,8 @@ esp_err_t Scd40_GetCarbonDioxideConcentration(float* result) {
     humU16 = (uint16_t)((((uint16_t)buf[6]) << 8) | ((uint16_t)buf[7]));
 
     co2Concentration = (float)co2U16;
-    temperature = -45 + (((float)tempU16) * 175 / 65536);
-    humidity = ((float)humU16) * 100 / 65536;
+    temperature = (float)(tempU16 * 175.0 / 65535.0 - 45.0);
+    humidity = (float)(humU16 * 100.0 / 65535.0);
     memcpy(&result[0], &co2Concentration, sizeof(co2Concentration));
     memcpy(&result[1], &temperature, sizeof(temperature));
     memcpy(&result[2], &humidity, sizeof(humidity));
@@ -182,11 +182,6 @@ esp_err_t Scd40_Init(i2c_port_t i2c_num, gpio_num_t sda, gpio_num_t scl, uint32_
     if (scd40_device == NULL) {
         return ESP_ERR_NOT_FOUND;
     }
-
-//    Scd40_SetMeasurementInterval(2); // 2 seconds between measurements
-    Scd40_StartPeriodicMeasurement(); // start periodic measuments
-
-    //Scd40_SetAutoSelfCalibration(true); // Enable auto-self-calibration
 
     return ret;
 }
