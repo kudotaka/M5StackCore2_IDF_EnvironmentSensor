@@ -5,6 +5,20 @@ menu "M5Unit enable"
     config SOFTWARE_UNIT_ENV3_SUPPORT
         bool "UNIT-ENV3-Hardware"
         default n
+    config SOFTWARE_UNIT_BMP280_SUPPORT
+        bool "UNIT-BMP280-Hardware"
+        default n
+
+        help
+            Sensor : pressure
+
+    config SOFTWARE_UNIT_QMP6988_SUPPORT
+        bool "UNIT-QMP6988-Hardware"
+        default n
+
+        help
+            Sensor : pressure
+
     config SOFTWARE_UNIT_ENV_SCD30_SUPPORT
         bool "UNIT-ENV-SCD30-Hardware"
         default n

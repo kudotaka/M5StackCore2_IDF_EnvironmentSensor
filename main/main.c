@@ -34,6 +34,8 @@
 
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_SK6812_SUPPORT \
@@ -58,6 +60,13 @@ float g_temperature = 0.0;
 float g_humidity = 0.0;
 float g_pressure = 0.0;
 #endif //CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
+#if CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT
+//uint32_t g_pressure = 0.0;
+float g_pressure = 0.0;
+#endif //CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT
+#if CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT
+float g_pressure = 0.0;
+#endif //CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT
 #if ( CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
 float g_temperature = 0.0;
 float g_humidity = 0.0;
@@ -308,7 +317,8 @@ void vLoopUnitEnv2Task(void *pvParametes)
 #endif
 #if CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
             g_pressure = Bmp280_getPressure() / 100;
-            ESP_LOGI(TAG, "temperature:%f, humidity:%f, pressure:%d", g_temperature, g_humidity, g_pressure);
+//            ESP_LOGI(TAG, "temperature:%f, humidity:%f, pressure:%d", g_temperature, g_humidity, g_pressure);
+            ESP_LOGI(TAG, "temperature:%f, humidity:%f, pressure:%f", g_temperature, g_humidity, g_pressure);
 #endif
 #if CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
             g_pressure = Qmp6988_CalcPressure();
@@ -322,6 +332,50 @@ void vLoopUnitEnv2Task(void *pvParametes)
             ESP_LOGE(TAG, "Sht3x_Read() is error code:%d", ret);
             vTaskDelay( pdMS_TO_TICKS(10000) );
         }
+
+        vTaskDelay( pdMS_TO_TICKS(5000) );
+    }
+}
+#endif
+
+#if ( CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT || CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT )
+TaskHandle_t xUnitBmp280;
+void vLoopUnitBmp280Task(void *pvParametes)
+{
+    ESP_LOGI(TAG, "start I2C Bmp280 or Qmp6988");
+    esp_err_t ret = ESP_OK;
+    ret = Bmp280_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Bmp280_Init Error");
+        return;
+    }
+    ESP_LOGI(TAG, "Bmp280_Init() is OK!");
+
+    while (1) {
+        g_pressure = Bmp280_getPressure() / 100;
+        ESP_LOGI(TAG, "pressure:%f", g_pressure);
+
+        vTaskDelay( pdMS_TO_TICKS(5000) );
+    }
+}
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT
+TaskHandle_t xUnitQmp6988;
+void vLoopUnitQmp6988Task(void *pvParametes)
+{
+    ESP_LOGI(TAG, "start I2C Qmp6988");
+    esp_err_t ret = ESP_OK;
+    ret = Qmp6988_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Qmp6988_Init Error");
+        return;
+    }
+    ESP_LOGI(TAG, "Qmp6988_Init() is OK!");
+
+    while (1) {
+        g_pressure = Qmp6988_CalcPressure();
+        ESP_LOGI(TAG, "pressure:%f", g_pressure);
 
         vTaskDelay( pdMS_TO_TICKS(5000) );
     }
@@ -800,7 +854,13 @@ static void vLoopEspMqttClient_task(void* pvParameters) {
         sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"pressure\":%4.1f}", g_temperature, g_humidity, g_pressure);
 #endif //CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
 #if ( CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
+    #if ( CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT )
+        sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"co2\":%4d,\"pressure\":%4.1f}", g_temperature, g_humidity, g_co2, g_pressure);
+    #elif ( CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT )
+       sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"co2\":%4d,\"pressure\":%4.1f}", g_temperature, g_humidity, g_co2, g_pressure);
+    #else
         sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"co2\":%4d}", g_temperature, g_humidity, g_co2);
+    #endif
 #endif //( CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
         msg_id = esp_mqtt_client_publish(mqttClient, CONFIG_BROKER_MY_PUB_TOPIC, pubMessage, 0, 0, 0);
         ESP_LOGI(TAG, "sent publish successful, msg_id=%d pubMessage=%s", msg_id, pubMessage);
@@ -881,6 +941,16 @@ void app_main(void)
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT )
     // UNIT ENV2
     xTaskCreatePinnedToCore(&vLoopUnitEnv2Task, "unit_env2_task", 4096 * 1, NULL, 2, &xUnitEnv2, 1);
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT
+    // UNIT BMP280
+    xTaskCreatePinnedToCore(&vLoopUnitBmp280Task, "unit_bmp280_task", 4096 * 1, NULL, 2, &xUnitBmp280, 1);
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT
+    // UNIT QMP6988
+    xTaskCreatePinnedToCore(&vLoopUnitQmp6988Task, "unit_qmp6988_task", 4096 * 1, NULL, 2, &xUnitQmp6988, 1);
 #endif
 
 #if CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT

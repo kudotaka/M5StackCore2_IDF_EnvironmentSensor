@@ -167,7 +167,8 @@ float Bmp280_getTemperature(void) {
   return T / 100;
 }
 
-uint32_t Bmp280_getPressure(void) {
+//uint32_t Bmp280_getPressure(void) {
+float Bmp280_getPressure(void) {
   int64_t var1, var2, p;
   // Call getTemperature to get t_fine
   Bmp280_getTemperature();
@@ -192,7 +193,7 @@ uint32_t Bmp280_getPressure(void) {
   var1 = (((int64_t)bmp280.bmp280_cali.dig_P9) * (p >> 13) * (p >> 13)) >> 25;
   var2 = (((int64_t)bmp280.bmp280_cali.dig_P8) * p) >> 19;
   p = ((p + var1 + var2) >> 8) + (((int64_t)bmp280.bmp280_cali.dig_P7) << 4);
-  return (uint32_t)p / 256;
+  return (float)p / 256;
 }
 
 float Bmp280_calcAltitude2(float p0, float p1, float t) {
