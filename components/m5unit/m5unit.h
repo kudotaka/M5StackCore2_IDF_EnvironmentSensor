@@ -5,14 +5,6 @@
 #include "bmp280.h"
 #endif
 
-#if CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT
-#include "bmp280.h"
-#endif
-
-#if CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT
-#include "qmp6988.h"
-#endif
-
 #if CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
 #include "sht3x.h"
 #include "qmp6988.h"
@@ -24,6 +16,14 @@
 
 #if CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT
 #include "scd40.h"
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT
+#include "bmp280.h"
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT
+#include "qmp6988.h"
 #endif
 
 #if CONFIG_SOFTWARE_UNIT_SK6812_SUPPORT

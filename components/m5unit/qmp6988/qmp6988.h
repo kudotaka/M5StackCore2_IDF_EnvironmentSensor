@@ -13,6 +13,7 @@ extern "C" {
 esp_err_t Qmp6988_Init(i2c_port_t i2c_num, gpio_num_t sda, gpio_num_t scl, uint32_t baud);
 esp_err_t Qmp6988_GetChipID();
 float Qmp6988_CalcPressure();
+float Qmp6988_calcTemperature();
 
 #ifdef __cplusplus
 }

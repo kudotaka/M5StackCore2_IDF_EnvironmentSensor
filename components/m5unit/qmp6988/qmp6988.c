@@ -5,9 +5,10 @@
 #define QMP6988_ADDR (0x70)
 #define QMP6988_CHIP_ID_REG (0xD1)
 #define QMP6988_RESET_REG   (0xE0)
+#define QMP6988_DEVICE_STAT_REG (0xF3)
 #define QMP6988_CTRLMEAS_REG    (0xF4)
-#define QMP6988_CONFIG_REG      (0xF1)
 #define QMP6988_PRESSURE_MSB_REG    (0xF7)
+#define QMP6988_TEMPERATURE_MSB_REG    (0xFA)
 
 #define QMP6988_U16_t unsigned short
 #define QMP6988_S16_t short
@@ -47,6 +48,8 @@
 #define QMP6988_FILTERCOEFF_8   (0x03)
 #define QMP6988_FILTERCOEFF_16  (0x04)
 #define QMP6988_FILTERCOEFF_32  (0x05)
+
+#define QMP6988_CONFIG_REG      (0xF1)
 
 #define SUBTRACTOR (8388608)
 
@@ -163,10 +166,10 @@ esp_err_t Qmp6988_GetCalibrationData() {
     uint8_t a_data_uint8_tr[QMP6988_CALIBRATION_DATA_LENGTH] = {0};
     int len = 0;
     for (len = 0; len < QMP6988_CALIBRATION_DATA_LENGTH; len++) {
-        ret = i2c_read_bytes(qmp6988_device, (uint32_t)(QMP6988_CALIBRATION_DATA_START + 1), &(a_data_uint8_tr[len]), (uint16_t)1);
+        ret = i2c_read_bytes(qmp6988_device, (uint32_t)(QMP6988_CALIBRATION_DATA_START + len), &(a_data_uint8_tr[len]), (uint16_t)1);
         vTaskDelay( pdMS_TO_TICKS(100) );
         if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "qmp6988 read 0xA0 error!");
+            ESP_LOGE(TAG, "qmp6988 read 0xA0+ error!");
             return ret;
         }
     }
@@ -390,6 +393,57 @@ float Qmp6988_CalcPressure() {
     qmp6988.pressure    = (float)P_int / 16.0f;
 
     return qmp6988.pressure;
+}
+
+float Qmp6988_calcTemperature() {
+    esp_err_t ret = ESP_OK;
+    if (qmp6988_device == NULL) {
+        ESP_LOGE(TAG, "qmp6988 device not found!");
+        return 0.0;
+    }
+
+    QMP6988_U32_t P_read, T_read;
+    QMP6988_S32_t P_raw, T_raw;
+    uint8_t a_data_uint8_tr[6] = {0};
+    QMP6988_S32_t T_int, P_int;
+
+    // press
+    ret = i2c_read_bytes(qmp6988_device, (uint32_t)QMP6988_PRESSURE_MSB_REG, a_data_uint8_tr, (uint16_t)6);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "qmp6988 read press raw error!");
+        return 0.0;
+    }
+
+    P_read = (QMP6988_U32_t)((((QMP6988_U32_t)(a_data_uint8_tr[0]))
+                              << SHIFT_LEFT_16_POSITION) |
+                             (((QMP6988_U16_t)(a_data_uint8_tr[1]))
+                              << SHIFT_LEFT_8_POSITION) |
+                             (a_data_uint8_tr[2]));
+    P_raw  = (QMP6988_S32_t)(P_read - SUBTRACTOR);
+
+    // temp
+//    ret = i2c_read_bytes(qmp6988_device, (uint32_t)QMP6988_TEMPERATURE_MSB_REG, a_data_uint8_tr, (uint16_t)3);
+//    if (ret != ESP_OK) {
+//        ESP_LOGE(TAG, "qmp6988 read press raw error!");
+//        return 0.0;
+//    }
+//    err = readData(slave_addr, QMP6988_TEMPERATURE_MSB_REG, a_data_uint8_tr, 3);
+//    if (err == 0) {
+//        QMP6988_LOG("qmp6988 read temp raw error! \n");
+//    }
+    T_read = (QMP6988_U32_t)((((QMP6988_U32_t)(a_data_uint8_tr[3]))
+                              << SHIFT_LEFT_16_POSITION) |
+                             (((QMP6988_U16_t)(a_data_uint8_tr[4]))
+                              << SHIFT_LEFT_8_POSITION) |
+                             (a_data_uint8_tr[5]));
+    T_raw  = (QMP6988_S32_t)(T_read - SUBTRACTOR);
+
+    T_int               = Qmp6988_ConvTx02e(&(qmp6988.ik), T_raw);
+    P_int               = Qmp6988_GetPressure02e(&(qmp6988.ik), P_raw, T_int);
+    qmp6988.temperature = (float)T_int / 256.0f;
+    qmp6988.pressure    = (float)P_int / 16.0f;
+
+    return qmp6988.temperature;
 }
 
 esp_err_t Qmp6988_Init(i2c_port_t i2c_num, gpio_num_t sda, gpio_num_t scl, uint32_t baud) {

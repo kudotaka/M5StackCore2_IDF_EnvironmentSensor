@@ -34,10 +34,10 @@
 
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_SK6812_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_4DIGIT_DISPLAY_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_6DIGIT_DISPLAY_SUPPORT )
@@ -321,7 +321,7 @@ void vLoopUnitEnv2Task(void *pvParametes)
             ESP_LOGI(TAG, "temperature:%f, humidity:%f, pressure:%f", g_temperature, g_humidity, g_pressure);
 #endif
 #if CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
-            g_pressure = Qmp6988_CalcPressure();
+            g_pressure = Qmp6988_CalcPressure() / 100;
             ESP_LOGI(TAG, "temperature:%f, humidity:%f, pressure:%f", g_temperature, g_humidity, g_pressure);
 #endif
 #if CONFIG_SOFTWARE_UI_SUPPORT
@@ -338,11 +338,11 @@ void vLoopUnitEnv2Task(void *pvParametes)
 }
 #endif
 
-#if ( CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT || CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT )
+#if ( CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT )
 TaskHandle_t xUnitBmp280;
 void vLoopUnitBmp280Task(void *pvParametes)
 {
-    ESP_LOGI(TAG, "start I2C Bmp280 or Qmp6988");
+    ESP_LOGI(TAG, "start I2C Bmp280");
     esp_err_t ret = ESP_OK;
     ret = Bmp280_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
     if (ret != ESP_OK) {
@@ -374,7 +374,7 @@ void vLoopUnitQmp6988Task(void *pvParametes)
     ESP_LOGI(TAG, "Qmp6988_Init() is OK!");
 
     while (1) {
-        g_pressure = Qmp6988_CalcPressure();
+        g_pressure = Qmp6988_CalcPressure() / 100;
         ESP_LOGI(TAG, "pressure:%f", g_pressure);
 
         vTaskDelay( pdMS_TO_TICKS(5000) );
