@@ -53,7 +53,7 @@ static const char *TAG = "MY-MAIN";
 #if CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
 float g_temperature = 0.0;
 float g_humidity = 0.0;
-uint32_t g_pressure = 0.0;
+float g_pressure = 0.0;
 #endif //CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
 #if CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
 float g_temperature = 0.0;
@@ -61,7 +61,6 @@ float g_humidity = 0.0;
 float g_pressure = 0.0;
 #endif //CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
 #if CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT
-//uint32_t g_pressure = 0.0;
 float g_pressure = 0.0;
 #endif //CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT
 #if CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT
@@ -317,7 +316,6 @@ void vLoopUnitEnv2Task(void *pvParametes)
 #endif
 #if CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
             g_pressure = Bmp280_getPressure() / 100;
-//            ESP_LOGI(TAG, "temperature:%f, humidity:%f, pressure:%d", g_temperature, g_humidity, g_pressure);
             ESP_LOGI(TAG, "temperature:%f, humidity:%f, pressure:%f", g_temperature, g_humidity, g_pressure);
 #endif
 #if CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
@@ -353,7 +351,7 @@ void vLoopUnitBmp280Task(void *pvParametes)
 
     while (1) {
         g_pressure = Bmp280_getPressure() / 100;
-        ESP_LOGI(TAG, "pressure:%f", g_pressure);
+        ESP_LOGI(TAG, "Bmp280 pressure:%f", g_pressure);
 
         vTaskDelay( pdMS_TO_TICKS(5000) );
     }
@@ -375,7 +373,7 @@ void vLoopUnitQmp6988Task(void *pvParametes)
 
     while (1) {
         g_pressure = Qmp6988_CalcPressure() / 100;
-        ESP_LOGI(TAG, "pressure:%f", g_pressure);
+        ESP_LOGI(TAG, "Qmp6988 pressure:%f", g_pressure);
 
         vTaskDelay( pdMS_TO_TICKS(5000) );
     }

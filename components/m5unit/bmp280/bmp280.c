@@ -47,14 +47,11 @@ typedef struct _bmp280_cali_data {
 } bmp280_cali_data_t;
 
 typedef struct _bmp280_data {
-//    uint8_t slave;
     uint8_t chipid;
-//    uint8_t power_mode;
     float temperature;
     float pressure;
     float altitude;
     bmp280_cali_data_t bmp280_cali;
-//    qmp6988_ik_data_t ik;
 } bmp280_data_t;
 
 static const char *TAG = "BMP280";
@@ -110,15 +107,7 @@ uint16_t Bmp280_bmp280Read16LE(uint8_t reg) {
     }
     return (uint16_t) data[1] << 8 | data[0];
 }
-/*
-int16_t Bmp280_bmp280ReadS16(uint8_t reg) {
-    return (int16_t)Bmp280_bmp280Read16(reg);
-}
 
-int16_t Bmp280_bmp280ReadS16LE(uint8_t reg) {
-  return (int16_t)Bmp280_bmp280Read16LE(reg);
-}
-*/
 uint32_t Bmp280_bmp280Read24(uint8_t reg) {
     esp_err_t ret = ESP_OK;
     uint8_t data[3] = {0};
@@ -151,11 +140,7 @@ esp_err_t Bmp280_writeRegister(uint8_t reg, uint8_t val) {
 float Bmp280_getTemperature(void) {
   int32_t var1, var2;
   int32_t adc_T = Bmp280_bmp280Read24(BMP280_REG_TEMPDATA);
-/*  // Check if the last transport successed
-  if (!isTransport_OK) {
-    return 0;
-  }
-*/
+
   adc_T >>= 4;
   var1 = (((adc_T >> 3) - ((int32_t)(bmp280.bmp280_cali.dig_T1 << 1))) *
           ((int32_t)bmp280.bmp280_cali.dig_T2)) >> 11;
@@ -167,16 +152,11 @@ float Bmp280_getTemperature(void) {
   return T / 100;
 }
 
-//uint32_t Bmp280_getPressure(void) {
 float Bmp280_getPressure(void) {
   int64_t var1, var2, p;
   // Call getTemperature to get t_fine
   Bmp280_getTemperature();
-/*  // Check if the last transport successed
-  if (!isTransport_OK) {
-    return 0;
-  }
-*/
+
   int32_t adc_P = Bmp280_bmp280Read24(BMP280_REG_PRESSUREDATA);
   adc_P >>= 4;
   var1 = ((int64_t)bmp280.bmp280_cali.t_fine) - 128000;
@@ -205,10 +185,6 @@ float Bmp280_calcAltitude2(float p0, float p1, float t) {
 }
 
 float Bmp280_calcAltitude1(float p0) {
-/*  if (!isTransport_OK) {
-    return 0;
-  }
-*/
   float t = Bmp280_getTemperature();
   float p1 = Bmp280_getPressure();
   return Bmp280_calcAltitude2(p0, p1, t);
