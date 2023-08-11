@@ -55,35 +55,34 @@ static lv_obj_t *status_txtarea;
 static lv_obj_t *wifi_label;
 #endif
 
-#if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
-#define MOJI_DEGREESIGN  "°C"
-static lv_obj_t *humidity_current;
-static lv_obj_t *humidity_label;
-static lv_obj_t *temperature_current;
-static lv_obj_t *temperature_label;
+static float MAX_TEMPERATURE_VALUE = 50.0;
+static float MIN_TEMPERATURE_VALUE = -20.0;
+static float MAX_HUMIDITY_VALUE = 99.0;
+static float MIN_HUMIDITY_VALUE = 1.0;
+static int32_t MAX_CO2_VALUE = 5000;
+static int32_t MIN_CO2_VALUE = 400;
+static int32_t MAX_PRESSURE_VALUE = 1100;
+static int32_t MIN_PRESSURE_VALUE = 850;
 
-static lv_obj_t *humidity_meter;
-static lv_obj_t *temperature_meter;
-static lv_style_t label_big_style;
-static lv_style_t good_linemeter_style;
-static lv_style_t over_linemeter_style;
-static lv_style_t lower_linemeter_style;
-static int32_t MAX_HUMIDITY_VALUE = 100;
-static int32_t MIN_HUMIDITY_VALUE = 20;
-static int32_t MAX_TEMPERATURE_VALUE = 45;
-static int32_t MIN_TEMPERATURE_VALUE = -5;
-static int32_t HUMIDITY_THRESHOLD_MAX = 70;
-static int32_t HUMIDITY_THRESHOLD_MIN = 40;
-static int32_t TEMPERATURE_THRESHOLD_MAX = 30;
-static int32_t TEMPERATURE_THRESHOLD_MIN = 12;
-#endif
 
 #if CONFIG_SOFTWARE_RTC_SUPPORT
 static lv_obj_t *datetime_txtarea;
 #endif
+
+#define MOJI_DEGREESIGN  "°C"
+static lv_obj_t *temperature_txtarea;
+static lv_obj_t *humidity_txtarea;
+static lv_obj_t *pressure_txtarea;
+static lv_obj_t *co2_txtarea;
+static lv_obj_t *temperature_current;
+static lv_obj_t *humidity_current;
+static lv_obj_t *pressure_current;
+static lv_obj_t *co2_current;
+static lv_obj_t *temperature_label;
+static lv_obj_t *humidity_label;
+static lv_obj_t *pressure_label;
+static lv_obj_t *co2_label;
+static lv_style_t label_big_style;
 
 #if ( CONFIG_SOFTWARE_BUTTON_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_BUTTON_SUPPORT )
@@ -147,33 +146,7 @@ void ui_datetime_set(char *dateTxt) {
 }
 #endif
 
-#if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
-void ui_humidity_update(int32_t value){
-    xSemaphoreTake(xGuiSemaphore, portMAX_DELAY);
-
-    if (value < MIN_HUMIDITY_VALUE) {
-        value = MIN_HUMIDITY_VALUE;
-    } else if (MAX_HUMIDITY_VALUE < value) {
-        value = MAX_HUMIDITY_VALUE;
-    }
-
-    if (value < HUMIDITY_THRESHOLD_MIN) {
-        lv_obj_add_style(humidity_meter, LV_LINEMETER_PART_MAIN, &lower_linemeter_style);
-    } else if (HUMIDITY_THRESHOLD_MAX < value) {
-        lv_obj_add_style(humidity_meter, LV_LINEMETER_PART_MAIN, &over_linemeter_style);
-    } else {
-        lv_obj_add_style(humidity_meter, LV_LINEMETER_PART_MAIN, &good_linemeter_style);
-    }
-    lv_label_set_text_fmt(humidity_current, "%d", value);
-    lv_linemeter_set_value(humidity_meter, value);
-
-    xSemaphoreGive(xGuiSemaphore);
-}
-
-void ui_temperature_update(int32_t value){
+void ui_temperature_update(float value){
     xSemaphoreTake(xGuiSemaphore, portMAX_DELAY);
 
     if (value < MIN_TEMPERATURE_VALUE) {
@@ -182,19 +155,52 @@ void ui_temperature_update(int32_t value){
         value = MAX_TEMPERATURE_VALUE;
     }
 
-    if (value < TEMPERATURE_THRESHOLD_MIN) {
-        lv_obj_add_style(temperature_meter, LV_LINEMETER_PART_MAIN, &lower_linemeter_style);
-    } else if (TEMPERATURE_THRESHOLD_MAX < value) {
-        lv_obj_add_style(temperature_meter, LV_LINEMETER_PART_MAIN, &over_linemeter_style);
-    } else {
-        lv_obj_add_style(temperature_meter, LV_LINEMETER_PART_MAIN, &good_linemeter_style);
-    }
-    lv_label_set_text_fmt(temperature_current, "%d", value);
-    lv_linemeter_set_value(temperature_meter, value);
+    lv_label_set_text_fmt(temperature_current, "%4.1f", value);
 
     xSemaphoreGive(xGuiSemaphore);
 }
-#endif
+
+void ui_humidity_update(float value){
+    xSemaphoreTake(xGuiSemaphore, portMAX_DELAY);
+
+    if (value < MIN_HUMIDITY_VALUE) {
+        value = MIN_HUMIDITY_VALUE;
+    } else if (MAX_HUMIDITY_VALUE < value) {
+        value = MAX_HUMIDITY_VALUE;
+    }
+
+    lv_label_set_text_fmt(humidity_current, "%4.1f", value);
+
+    xSemaphoreGive(xGuiSemaphore);
+}
+
+void ui_co2_update(int32_t value){
+    xSemaphoreTake(xGuiSemaphore, portMAX_DELAY);
+
+    if (value < MIN_CO2_VALUE) {
+        value = MIN_CO2_VALUE;
+    } else if (MAX_CO2_VALUE < value) {
+        value = MAX_CO2_VALUE;
+    }
+
+    lv_label_set_text_fmt(co2_current, "%4d", value);
+
+    xSemaphoreGive(xGuiSemaphore);
+}
+
+void ui_pressure_update(int32_t value){
+    xSemaphoreTake(xGuiSemaphore, portMAX_DELAY);
+
+    if (value < MIN_PRESSURE_VALUE) {
+        value = MIN_PRESSURE_VALUE;
+    } else if (MAX_PRESSURE_VALUE < value) {
+        value = MAX_PRESSURE_VALUE;
+    }
+
+    lv_label_set_text_fmt(pressure_current, "%4d", value);
+
+    xSemaphoreGive(xGuiSemaphore);
+}
 
 
 void ui_init() {
@@ -228,66 +234,6 @@ void ui_init() {
     lv_label_set_text(button_label, "");
 #endif
 
-
-#if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
-    // label_style
-    lv_style_init(&label_big_style);
-    lv_style_set_text_font(&label_big_style, LV_STATE_DEFAULT, &lv_font_montserrat_32);
-
-    int32_t humidity_value = MIN_HUMIDITY_VALUE;
-    humidity_meter = lv_linemeter_create(active_screen, NULL);
-    lv_linemeter_set_range(humidity_meter, MIN_HUMIDITY_VALUE, MAX_HUMIDITY_VALUE);
-    lv_linemeter_set_scale(humidity_meter, 240, 21);
-    lv_obj_set_size(humidity_meter, 150, 150);
-    lv_obj_align(humidity_meter, NULL, LV_ALIGN_CENTER, 80, 0);
-    lv_linemeter_set_value(humidity_meter, humidity_value);
-    humidity_current = lv_label_create(humidity_meter, NULL);
-    lv_label_set_long_mode(humidity_current, LV_LABEL_LONG_DOT);
-    lv_label_set_align(humidity_current, LV_LABEL_ALIGN_CENTER);
-    lv_label_set_text_fmt(humidity_current, "%d", humidity_value);
-    lv_obj_align(humidity_current, NULL, LV_ALIGN_CENTER, -16, -10);
-    lv_obj_set_size(humidity_current, 60, 60);
-    lv_obj_add_style(humidity_current, LV_STATE_DEFAULT, &label_big_style);
-    humidity_label = lv_label_create(humidity_meter, NULL);
-    lv_label_set_align(humidity_label, LV_LABEL_ALIGN_CENTER);
-    lv_label_set_text(humidity_label, "%");
-    lv_obj_align(humidity_label, NULL, LV_ALIGN_CENTER, 0, 40);
-
-    int32_t temperature_value = MIN_TEMPERATURE_VALUE;
-    temperature_meter = lv_linemeter_create(active_screen, NULL);
-    lv_linemeter_set_range(temperature_meter, MIN_TEMPERATURE_VALUE, MAX_TEMPERATURE_VALUE);
-    lv_linemeter_set_scale(temperature_meter, 240, 21);
-    lv_obj_set_size(temperature_meter, 150, 150);
-    lv_obj_align(temperature_meter, NULL, LV_ALIGN_CENTER, -80, 0);
-    lv_linemeter_set_value(temperature_meter, temperature_value);
-    temperature_current = lv_label_create(temperature_meter, NULL);
-    lv_label_set_long_mode(temperature_current, LV_LABEL_LONG_DOT);
-    lv_label_set_align(temperature_current, LV_LABEL_ALIGN_CENTER);
-    lv_label_set_text_fmt(temperature_current, "%d", temperature_value);
-    lv_obj_align(temperature_current, NULL, LV_ALIGN_CENTER, -16, -10);
-    lv_obj_set_size(temperature_current, 60, 60);
-    lv_obj_add_style(temperature_current, LV_STATE_DEFAULT, &label_big_style);
-    temperature_label = lv_label_create(temperature_meter, NULL);
-    lv_label_set_align(temperature_label, LV_LABEL_ALIGN_CENTER);
-    lv_label_set_text(temperature_label, MOJI_DEGREESIGN);
-    lv_obj_align(temperature_label, NULL, LV_ALIGN_CENTER, 0, 40);
-
-    // linemeter_style
-    lv_style_init(&good_linemeter_style);
-    lv_style_set_scale_grad_color(&good_linemeter_style, LV_STATE_DEFAULT, LV_COLOR_GREEN);
-    lv_style_set_line_color(&good_linemeter_style, LV_STATE_DEFAULT, LV_COLOR_GREEN);
-    lv_style_init(&over_linemeter_style);
-    lv_style_set_scale_grad_color(&over_linemeter_style, LV_STATE_DEFAULT, LV_COLOR_RED);
-    lv_style_set_line_color(&over_linemeter_style, LV_STATE_DEFAULT, LV_COLOR_RED);
-    lv_style_init(&lower_linemeter_style);
-    lv_style_set_scale_grad_color(&lower_linemeter_style, LV_STATE_DEFAULT, LV_COLOR_CYAN);
-    lv_style_set_line_color(&lower_linemeter_style, LV_STATE_DEFAULT, LV_COLOR_CYAN);
-#endif
-
-
 #if CONFIG_SOFTWARE_RTC_SUPPORT
     datetime_txtarea = lv_textarea_create(active_screen, NULL);
     lv_obj_set_size(datetime_txtarea, 175, 50);
@@ -298,6 +244,83 @@ void ui_init() {
     lv_textarea_set_cursor_hidden(datetime_txtarea, true);
     lv_textarea_set_one_line(datetime_txtarea, true);
 #endif
+
+    // New UI
+    lv_style_init(&label_big_style);
+    lv_style_set_text_font(&label_big_style, LV_STATE_DEFAULT, &lv_font_montserrat_48);
+
+    char * temperature_str = "----";
+    temperature_txtarea = lv_textarea_create(active_screen, NULL);
+    lv_obj_set_size(temperature_txtarea, 150, 80);
+    lv_obj_align(temperature_txtarea, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 40);
+    lv_textarea_set_text_sel(temperature_txtarea, false);
+    lv_textarea_set_cursor_hidden(temperature_txtarea, true);
+    lv_textarea_set_text(temperature_txtarea, "");
+    temperature_current = lv_label_create(temperature_txtarea, NULL);
+    lv_obj_align(temperature_current, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 0);
+    lv_obj_add_style(temperature_current, LV_STATE_DEFAULT, &label_big_style);
+    lv_label_set_align(temperature_current, LV_LABEL_ALIGN_CENTER);
+    lv_label_set_text_fmt(temperature_current, "%s", temperature_str);
+
+    temperature_label = lv_label_create(temperature_txtarea, NULL);
+    lv_obj_align(temperature_label, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, 11, 15);
+    lv_label_set_align(temperature_label, LV_LABEL_ALIGN_RIGHT);
+    lv_label_set_text(temperature_label, MOJI_DEGREESIGN);
+
+    char * humidity_str = "----";
+    humidity_txtarea = lv_textarea_create(active_screen, NULL);
+    lv_obj_set_size(humidity_txtarea, 150, 80);
+    lv_obj_align(humidity_txtarea, NULL, LV_ALIGN_IN_TOP_RIGHT, -10, 40);
+    lv_textarea_set_text_sel(humidity_txtarea, false);
+    lv_textarea_set_cursor_hidden(humidity_txtarea, true);
+    lv_textarea_set_text(humidity_txtarea, "");
+    humidity_current = lv_label_create(humidity_txtarea, NULL);
+    lv_obj_align(humidity_current, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 0);
+    lv_obj_add_style(humidity_current, LV_STATE_DEFAULT, &label_big_style);
+    lv_label_set_align(humidity_current, LV_LABEL_ALIGN_CENTER);
+    lv_label_set_text_fmt(humidity_current, "%s", humidity_str);
+
+    humidity_label = lv_label_create(humidity_txtarea, NULL);
+    lv_obj_align(humidity_label, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, 16, 15);
+    lv_label_set_align(humidity_label, LV_LABEL_ALIGN_RIGHT);
+    lv_label_set_text(humidity_label, "%");
+
+    char * co2_str = "----";
+    co2_txtarea = lv_textarea_create(active_screen, NULL);
+    lv_obj_set_size(co2_txtarea, 150, 80);
+    lv_obj_align(co2_txtarea, NULL, LV_ALIGN_IN_BOTTOM_LEFT, 10, -40);
+    lv_textarea_set_text_sel(co2_txtarea, false);
+    lv_textarea_set_cursor_hidden(co2_txtarea, true);
+    lv_textarea_set_text(co2_txtarea, "");
+    co2_current = lv_label_create(co2_txtarea, NULL);
+    lv_obj_align(co2_current, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 0);
+    lv_obj_add_style(co2_current, LV_STATE_DEFAULT, &label_big_style);
+    lv_label_set_align(co2_current, LV_LABEL_ALIGN_CENTER);
+    lv_label_set_text_fmt(co2_current, "%s", co2_str);
+
+    co2_label = lv_label_create(co2_txtarea, NULL);
+    lv_obj_align(co2_label, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -5, 15);
+    lv_label_set_align(co2_label, LV_LABEL_ALIGN_RIGHT);
+    lv_label_set_text(co2_label, "ppm");
+
+    char * pressure_str = "----";
+    pressure_txtarea = lv_textarea_create(active_screen, NULL);
+    lv_obj_set_size(pressure_txtarea, 150, 80);
+    lv_obj_align(pressure_txtarea, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -10, -40);
+    lv_textarea_set_text_sel(pressure_txtarea, false);
+    lv_textarea_set_cursor_hidden(pressure_txtarea, true);
+    lv_textarea_set_text(pressure_txtarea, "");
+    pressure_current = lv_label_create(pressure_txtarea, NULL);
+    lv_obj_align(pressure_current, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 0);
+    lv_obj_add_style(pressure_current, LV_STATE_DEFAULT, &label_big_style);
+    lv_label_set_align(pressure_current, LV_LABEL_ALIGN_CENTER);
+    lv_label_set_text_fmt(pressure_current, "%s", pressure_str);
+
+    pressure_label = lv_label_create(pressure_txtarea, NULL);
+    lv_obj_align(pressure_label, NULL, LV_ALIGN_IN_BOTTOM_RIGHT, 0, 15);
+    lv_label_set_align(pressure_label, LV_LABEL_ALIGN_RIGHT);
+    lv_label_set_text(pressure_label, "hPa");
+
 
     xSemaphoreGive(xGuiSemaphore);
 }

@@ -61,10 +61,14 @@ float g_humidity = 0.0;
 float g_pressure = 0.0;
 #endif //CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
 #if CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT
+#ifndef CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
 float g_pressure = 0.0;
+#endif
 #endif //CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT
 #if CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT
+#ifndef CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
 float g_pressure = 0.0;
+#endif
 #endif //CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT
 #if ( CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
 float g_temperature = 0.0;
@@ -323,8 +327,9 @@ void vLoopUnitEnv2Task(void *pvParametes)
             ESP_LOGI(TAG, "temperature:%f, humidity:%f, pressure:%f", g_temperature, g_humidity, g_pressure);
 #endif
 #if CONFIG_SOFTWARE_UI_SUPPORT
-            ui_temperature_update( Sht3x_GetIntTemperature() );
-            ui_humidity_update( Sht3x_GetIntHumidity() );
+            ui_temperature_update( g_temperature );
+            ui_humidity_update( g_humidity );
+            ui_pressure_update( g_pressure );
 #endif
         } else {
             ESP_LOGE(TAG, "Sht3x_Read() is error code:%d", ret);
@@ -351,7 +356,11 @@ void vLoopUnitBmp280Task(void *pvParametes)
 
     while (1) {
         g_pressure = Bmp280_getPressure() / 100;
+#if CONFIG_SOFTWARE_UI_SUPPORT
+        ui_pressure_update( g_pressure );
+#else
         ESP_LOGI(TAG, "Bmp280 pressure:%f", g_pressure);
+#endif
 
         vTaskDelay( pdMS_TO_TICKS(5000) );
     }
@@ -373,7 +382,11 @@ void vLoopUnitQmp6988Task(void *pvParametes)
 
     while (1) {
         g_pressure = Qmp6988_CalcPressure() / 100;
+#if CONFIG_SOFTWARE_UI_SUPPORT
+        ui_pressure_update( g_pressure );
+#else
         ESP_LOGI(TAG, "Qmp6988 pressure:%f", g_pressure);
+#endif
 
         vTaskDelay( pdMS_TO_TICKS(5000) );
     }
@@ -413,12 +426,9 @@ void vLoopUnitEnvScd30Task(void *pvParametes)
                 g_humidity = scd30_tmp[2];
                 ESP_LOGI(TAG, "temperature:%f, humidity:%f", g_temperature, g_humidity);
 #if CONFIG_SOFTWARE_UI_SUPPORT
-                char str1[25] = {0};
-                sprintf(str1, "CO2 : %04d ppm", g_co2);
-                ui_status_set( str1 );
-
-                ui_temperature_update( (int)g_temperature );
-                ui_humidity_update( (int)g_humidity );
+                ui_temperature_update( g_temperature );
+                ui_humidity_update( g_humidity );
+                ui_co2_update( g_co2 );
 #endif
             } else {
                 ESP_LOGE(TAG, "Scd30_GetCarbonDioxideConcentration is error code:%d", ret);
@@ -475,12 +485,9 @@ void vLoopUnitEnvScd40Task(void *pvParametes)
                 g_humidity = scd40_tmp[2];
                 ESP_LOGI(TAG, "temperature:%f, humidity:%f, CO2:%04d", g_temperature, g_humidity, g_co2);
 #if CONFIG_SOFTWARE_UI_SUPPORT
-                char str1[25] = {0};
-                sprintf(str1, "CO2 : %04d ppm", g_co2);
-                ui_status_set( str1 );
-
-                ui_temperature_update( (int)g_temperature );
-                ui_humidity_update( (int)g_humidity );
+                ui_temperature_update( g_temperature );
+                ui_humidity_update( g_humidity );
+                ui_co2_update( g_co2 );
 #endif
             } else {
                 ESP_LOGE(TAG, "Scd40_GetCarbonDioxideConcentration is error code:%X", ret);

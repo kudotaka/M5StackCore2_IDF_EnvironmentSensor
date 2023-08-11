@@ -30,13 +30,10 @@
 void ui_datetime_set(char *dateTxt);
 #endif
 
-#if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
-    || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
-void ui_temperature_update(int32_t value);
-void ui_humidity_update(int32_t value);
-#endif
+void ui_temperature_update(float value);
+void ui_humidity_update(float value);
+void ui_co2_update(int32_t value);
+void ui_pressure_update(int32_t value);
 
 #if ( CONFIG_SOFTWARE_BUTTON_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_BUTTON_SUPPORT )
