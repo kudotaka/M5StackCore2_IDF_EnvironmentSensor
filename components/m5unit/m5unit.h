@@ -18,6 +18,10 @@
 #include "scd40.h"
 #endif
 
+#if CONFIG_SOFTWARE_UNIT_ENV_MHZ19C_SUPPORT
+#include "mhz19c.h"
+#endif
+
 #if CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT
 #include "bmp280.h"
 #endif

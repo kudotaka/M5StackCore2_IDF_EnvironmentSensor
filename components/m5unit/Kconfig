@@ -2,29 +2,45 @@ menu "M5Unit enable"
     config SOFTWARE_UNIT_ENV2_SUPPORT
         bool "UNIT-ENV2-Hardware"
         default n
+        help
+            Sensor : temperature, humidity, pressure
+
     config SOFTWARE_UNIT_ENV3_SUPPORT
         bool "UNIT-ENV3-Hardware"
         default n
+        help
+            Sensor : temperature, humidity, pressure
+
     config SOFTWARE_UNIT_BMP280_SUPPORT
         bool "UNIT-BMP280-Hardware"
         default n
-
         help
             Sensor : pressure
 
     config SOFTWARE_UNIT_QMP6988_SUPPORT
         bool "UNIT-QMP6988-Hardware"
         default n
-
         help
             Sensor : pressure
 
     config SOFTWARE_UNIT_ENV_SCD30_SUPPORT
         bool "UNIT-ENV-SCD30-Hardware"
         default n
+        help
+            Sensor : temperature, humidity, co2
+
     config SOFTWARE_UNIT_ENV_SCD40_SUPPORT
         bool "UNIT-ENV-SCD40-Hardware"
         default n
+        help
+            Sensor : temperature, humidity, co2
+
+    config SOFTWARE_UNIT_ENV_MHZ19C_SUPPORT
+        bool "UNIT-MHZ19C-Hardware"
+        default n
+        help
+            Sensor : co2
+
     config SOFTWARE_UNIT_SK6812_SUPPORT
         bool "UNIT-SK6812-Hardware"
         default n

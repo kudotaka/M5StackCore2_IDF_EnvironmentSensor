@@ -38,6 +38,7 @@
     || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_ENV_MHZ19C_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_SK6812_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_4DIGIT_DISPLAY_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_6DIGIT_DISPLAY_SUPPORT )
@@ -75,6 +76,15 @@ float g_temperature = 0.0;
 float g_humidity = 0.0;
 int g_co2 = 0;
 #endif //( CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
+#if CONFIG_SOFTWARE_UNIT_ENV_MHZ19C_SUPPORT
+int g_co2 = 0;
+bool g_mhz19cInitialized = false;
+
+#define UART_PORT_NUM (UART_NUM_2)
+#define UART_BAUD_RATE (9600)
+#define TXD_PIN (GPIO_NUM_14)
+#define RXD_PIN (GPIO_NUM_13)
+#endif //CONFIG_SOFTWARE_UNIT_ENV_MHZ19C_SUPPORT
 
 #if CONFIG_SOFTWARE_RTC_SUPPORT
 static char g_lastSyncDatetime[72] = {0};
@@ -358,6 +368,7 @@ void vLoopUnitBmp280Task(void *pvParametes)
         g_pressure = Bmp280_getPressure() / 100;
 #if CONFIG_SOFTWARE_UI_SUPPORT
         ui_pressure_update( g_pressure );
+        ESP_LOGI(TAG, "Bmp280 pressure:%f", g_pressure);
 #else
         ESP_LOGI(TAG, "Bmp280 pressure:%f", g_pressure);
 #endif
@@ -384,6 +395,7 @@ void vLoopUnitQmp6988Task(void *pvParametes)
         g_pressure = Qmp6988_CalcPressure() / 100;
 #if CONFIG_SOFTWARE_UI_SUPPORT
         ui_pressure_update( g_pressure );
+        ESP_LOGI(TAG, "Qmp6988 pressure:%f", g_pressure);
 #else
         ESP_LOGI(TAG, "Qmp6988 pressure:%f", g_pressure);
 #endif
@@ -496,6 +508,53 @@ void vLoopUnitEnvScd40Task(void *pvParametes)
         }
 
         vTaskDelay( pdMS_TO_TICKS(10000) );
+    }
+}
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_ENV_MHZ19C_SUPPORT
+TaskHandle_t xUnitEnvMhz19;
+void vLoopUnitEnvMhz19Task(void *pvParametes)
+{
+    ESP_LOGI(TAG, "start UART Mhz19");
+    esp_err_t ret = ESP_OK;
+    ret = Mhz19c_Init(UART_PORT_NUM, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_BAUD_RATE);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Mhz19c_Init Error");
+        return;
+    }
+
+    while (!g_mhz19cInitialized)
+    {
+        Mhz19c_SetAutoCalibration(UART_PORT_NUM, false);
+        vTaskDelay( pdMS_TO_TICKS(5000) );
+
+        g_co2 = Mhz19c_GetCO2Concentration(UART_PORT_NUM);
+        if (g_co2 != 0)
+        {
+            g_mhz19cInitialized = true;
+        }
+        ESP_LOGE(TAG, "Mhz19c_SetAutoCalibration retry");
+        Mhz19c_SetAutoCalibration(UART_PORT_NUM, true);
+        vTaskDelay( pdMS_TO_TICKS(5000) );
+    }
+
+    while (1) {
+        g_co2 = Mhz19c_GetCO2Concentration(UART_PORT_NUM);
+        if (g_co2 != 0)
+        {
+#if CONFIG_SOFTWARE_UI_SUPPORT
+            ui_co2_update( g_co2 );
+            ESP_LOGI(TAG, "Mhz19c co2:%d", g_co2);
+#else
+            ESP_LOGI(TAG, "Mhz19c co2:%d", g_co2);
+#endif
+        } else {
+            ESP_LOGE(TAG, "Mhz19c_GetCO2Concentration is return co2 = 0");
+            vTaskDelay( pdMS_TO_TICKS(1000) );
+        }
+
+        vTaskDelay( pdMS_TO_TICKS(5000) );
     }
 }
 #endif
@@ -853,10 +912,18 @@ static void vLoopEspMqttClient_task(void* pvParameters) {
     // connected wifi
     if (wifi_isConnected() == ESP_OK) {
 #if CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
-        sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"pressure\":%4d}", g_temperature, g_humidity, g_pressure);
+    #if ( CONFIG_SOFTWARE_UNIT_ENV_MHZ19C_SUPPORT )
+        sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"pressure\":%4.1f,\"co2\":%4d}", g_temperature, g_humidity, g_pressure, g_co2);
+    #else
+        sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"pressure\":%4.1f}", g_temperature, g_humidity, g_pressure);
+    #endif
 #endif //CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
 #if CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
+    #if ( CONFIG_SOFTWARE_UNIT_ENV_MHZ19C_SUPPORT )
+        sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"pressure\":%4.1f,\"co2\":%4d}", g_temperature, g_humidity, g_pressure, g_co2);
+    #else
         sprintf(pubMessage, "{\"temperature\":%4.1f,\"humidity\":%4.1f,\"pressure\":%4.1f}", g_temperature, g_humidity, g_pressure);
+    #endif
 #endif //CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
 #if ( CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT )
     #if ( CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT )
@@ -917,6 +984,7 @@ void app_main(void)
 //    esp_log_level_set("MY-UI", ESP_LOG_INFO);
 //    esp_log_level_set("MY-WIFI", ESP_LOG_INFO);
 //    esp_log_level_set("MY-QMP6988", ESP_LOG_INFO);
+//    esp_log_level_set("MY-MHZ19C", ESP_LOG_INFO);
 //    esp_log_level_set("wifi", ESP_LOG_INFO);
 //    esp_log_level_set("gpio", ESP_LOG_INFO);
 
@@ -966,6 +1034,11 @@ void app_main(void)
 #if CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT
     // UNIT ENV SCD40
     xTaskCreatePinnedToCore(&vLoopUnitEnvScd40Task, "unit_env_scd40_task", 4096 * 1, NULL, 2, &xUnitEnvScd40, 1);
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_ENV_MHZ19C_SUPPORT
+    // UNIT ENV MHZ19C
+    xTaskCreatePinnedToCore(&vLoopUnitEnvMhz19Task, "unit_env_mhz19_task", 4096 * 1, NULL, 2, &xUnitEnvMhz19, 1);
 #endif
 
 #if CONFIG_SOFTWARE_MPU6886_SUPPORT
