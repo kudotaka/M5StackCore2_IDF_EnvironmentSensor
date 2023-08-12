@@ -10,6 +10,10 @@
 #include "qmp6988.h"
 #endif
 
+#if CONFIG_SOFTWARE_UNIT_BME680_SUPPORT
+#include "esp32_bme680.h"
+#endif
+
 #if CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT
 #include "scd30.h"
 #endif
@@ -20,6 +24,10 @@
 
 #if CONFIG_SOFTWARE_UNIT_ENV_MHZ19C_SUPPORT
 #include "mhz19c.h"
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_ADT7410_SUPPORT
+#include "adt7410.h"
 #endif
 
 #if CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT

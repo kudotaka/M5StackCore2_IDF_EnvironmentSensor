@@ -11,6 +11,18 @@ menu "M5Unit enable"
         help
             Sensor : temperature, humidity, pressure
 
+    config SOFTWARE_UNIT_BME680_SUPPORT
+        bool "UNIT-BME680-Hardware"
+        default n
+        help
+            Sensor : temperature, humidity, pressure
+
+    config SOFTWARE_UNIT_ADT7410_SUPPORT
+        bool "UNIT-ADT7410-Hardware"
+        default n
+        help
+            Sensor : temperature
+
     config SOFTWARE_UNIT_BMP280_SUPPORT
         bool "UNIT-BMP280-Hardware"
         default n

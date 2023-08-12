@@ -34,8 +34,10 @@
 
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_BME680_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_SCD30_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_SCD40_SUPPORT \
+    || CONFIG_SOFTWARE_UNIT_ADT7410_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_QMP6988_SUPPORT \
     || CONFIG_SOFTWARE_UNIT_ENV_MHZ19C_SUPPORT \
@@ -61,6 +63,15 @@ float g_temperature = 0.0;
 float g_humidity = 0.0;
 float g_pressure = 0.0;
 #endif //CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT
+#if CONFIG_SOFTWARE_UNIT_BME680_SUPPORT
+float g_temperature = 0.0;
+float g_humidity = 0.0;
+float g_pressure = 0.0;
+float g_gas = 0.0;
+#endif //CONFIG_SOFTWARE_UNIT_BME680_SUPPORT
+#if CONFIG_SOFTWARE_UNIT_ADT7410_SUPPORT
+float g_temperature = 0.0;
+#endif //CONFIG_SOFTWARE_UNIT_ADT7410_SUPPORT
 #if CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT
 #ifndef CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT
 float g_pressure = 0.0;
@@ -345,6 +356,67 @@ void vLoopUnitEnv2Task(void *pvParametes)
             ESP_LOGE(TAG, "Sht3x_Read() is error code:%d", ret);
             vTaskDelay( pdMS_TO_TICKS(10000) );
         }
+
+        vTaskDelay( pdMS_TO_TICKS(5000) );
+    }
+}
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_BME680_SUPPORT
+TaskHandle_t xUnitBme680;
+void vLoopUnitBme680Task(void *pvParametes)
+{
+    ESP_LOGI(TAG, "start I2C Bme680");
+    esp_err_t ret = ESP_OK;
+    ret = Esp32_Bme680_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Esp32_BME680_Init Error");
+        return;
+    }
+    ESP_LOGI(TAG, "Esp32_BME680_Init is OK!");
+
+    while (1) {
+        if (Esp32_Bme680_read_sensor_data() == 0) {
+            g_temperature = Esp32_Bme680_get_temperature();
+            g_humidity = Esp32_Bme680_get_humidity();
+            g_pressure = Esp32_Bme680_get_pressure() / 100.0;
+            g_gas = Esp32_Bme680_get_gas() / 1000.0;
+#if CONFIG_SOFTWARE_UI_SUPPORT
+            ui_temperature_update( g_temperature );
+            ui_humidity_update( g_humidity );
+            ui_pressure_update( g_pressure );
+            ESP_LOGI(TAG, "Bme680 temperature:%f, humidity:%f, pressure:%f, gas:%f", g_temperature, g_humidity, g_pressure, g_gas);
+#else
+            ESP_LOGI(TAG, "Bme680 temperature:%f, humidity:%f, pressure:%f, gas:%f", g_temperature, g_humidity, g_pressure, g_gas);
+#endif
+        }
+
+        vTaskDelay( pdMS_TO_TICKS(5000) );
+    }
+}
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_ADT7410_SUPPORT
+TaskHandle_t xUnitAdt7410;
+void vLoopUnitAdt7410Task(void *pvParametes)
+{
+    ESP_LOGI(TAG, "start I2C Adt7410");
+    esp_err_t ret = ESP_OK;
+    ret = Adt7410_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Adt7410_Init Error");
+        return;
+    }
+    ESP_LOGI(TAG, "Adt7410_Init is OK!");
+
+    while (1) {
+        g_temperature = Adt7410_getTemperature_13bit();
+#if CONFIG_SOFTWARE_UI_SUPPORT
+        ui_temperature_update( g_temperature );
+        ESP_LOGI(TAG, "Adt7410 temperature:%f", g_temperature);
+#else
+        ESP_LOGI(TAG, "Adt7410 temperature:%f", g_temperature);
+#endif
 
         vTaskDelay( pdMS_TO_TICKS(5000) );
     }
@@ -985,6 +1057,7 @@ void app_main(void)
 //    esp_log_level_set("MY-WIFI", ESP_LOG_INFO);
 //    esp_log_level_set("MY-QMP6988", ESP_LOG_INFO);
 //    esp_log_level_set("MY-MHZ19C", ESP_LOG_INFO);
+    esp_log_level_set("MY-LPS25HB", ESP_LOG_INFO);
 //    esp_log_level_set("wifi", ESP_LOG_INFO);
 //    esp_log_level_set("gpio", ESP_LOG_INFO);
 
@@ -1014,6 +1087,16 @@ void app_main(void)
 #if ( CONFIG_SOFTWARE_UNIT_ENV2_SUPPORT || CONFIG_SOFTWARE_UNIT_ENV3_SUPPORT )
     // UNIT ENV2
     xTaskCreatePinnedToCore(&vLoopUnitEnv2Task, "unit_env2_task", 4096 * 1, NULL, 2, &xUnitEnv2, 1);
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_BME680_SUPPORT
+    // UNIT BME680
+    xTaskCreatePinnedToCore(&vLoopUnitBme680Task, "unit_bme680_task", 4096 * 1, NULL, 2, &xUnitBme680, 1);
+#endif
+
+#if CONFIG_SOFTWARE_UNIT_ADT7410_SUPPORT
+    // UNIT ADT7410
+    xTaskCreatePinnedToCore(&vLoopUnitAdt7410Task, "unit_adt7410_task", 4096 * 1, NULL, 2, &xUnitAdt7410, 1);
 #endif
 
 #if CONFIG_SOFTWARE_UNIT_BMP280_SUPPORT
