@@ -311,6 +311,7 @@ void vLoopUnitEnv2Task(void *pvParametes)
     ret = Sht3x_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Sht3x_Init Error");
+        vTaskDelete(NULL);
         return;
     }
     ESP_LOGI(TAG, "Sht3x_Init() is OK!");
@@ -319,6 +320,7 @@ void vLoopUnitEnv2Task(void *pvParametes)
     ret = Bmp280_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Bmp280_Init Error");
+        vTaskDelete(NULL);
         return;
     }
     ESP_LOGI(TAG, "Bmp280_Init() is OK!");
@@ -327,6 +329,7 @@ void vLoopUnitEnv2Task(void *pvParametes)
     ret = Qmp6988_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Qmp6988_Init Error");
+        vTaskDelete(NULL);
         return;
     }
     ESP_LOGI(TAG, "Qmp6988_Init() is OK!");
@@ -371,6 +374,7 @@ void vLoopUnitBme680Task(void *pvParametes)
     ret = Esp32_Bme680_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Esp32_BME680_Init Error");
+        vTaskDelete(NULL);
         return;
     }
     ESP_LOGI(TAG, "Esp32_BME680_Init is OK!");
@@ -405,6 +409,7 @@ void vLoopUnitAdt7410Task(void *pvParametes)
     ret = Adt7410_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Adt7410_Init Error");
+        vTaskDelete(NULL);
         return;
     }
     ESP_LOGI(TAG, "Adt7410_Init is OK!");
@@ -432,6 +437,7 @@ void vLoopUnitBmp280Task(void *pvParametes)
     ret = Bmp280_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Bmp280_Init Error");
+        vTaskDelete(NULL);
         return;
     }
     ESP_LOGI(TAG, "Bmp280_Init() is OK!");
@@ -459,6 +465,7 @@ void vLoopUnitQmp6988Task(void *pvParametes)
     ret = Qmp6988_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Qmp6988_Init Error");
+        vTaskDelete(NULL);
         return;
     }
     ESP_LOGI(TAG, "Qmp6988_Init() is OK!");
@@ -486,6 +493,7 @@ void vLoopUnitEnvScd30Task(void *pvParametes)
     ret = Scd30_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Scd30_I2CInit Error");
+        vTaskDelete(NULL);
         return;
     }
     ret = Scd30_SetAutoSelfCalibration(false);
@@ -534,6 +542,7 @@ void vLoopUnitEnvScd40Task(void *pvParametes)
     ret = Scd40_Init(I2C_NUM_0, PORT_A_SDA_PIN, PORT_A_SCL_PIN, PORT_A_I2C_STANDARD_BAUD);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Scd40_I2CInit Error");
+        vTaskDelete(NULL);
         return;
     }
     ret = Scd40_StopPeriodicMeasurement();
@@ -593,6 +602,7 @@ void vLoopUnitEnvMhz19Task(void *pvParametes)
     ret = Mhz19c_Init(UART_PORT_NUM, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_BAUD_RATE);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Mhz19c_Init Error");
+        vTaskDelete(NULL);
         return;
     }
 
@@ -813,6 +823,7 @@ void vLoopUnitDigitDisplayTask(void *pvParametes)
     } else {
         ESP_LOGE(TAG, "Digit Display Tm1637_Enable Error");
         vTaskDelete(NULL);
+        return;
     }
     while(1) {
         Tm1637_ClearDisplay(digitdisplay_1);
